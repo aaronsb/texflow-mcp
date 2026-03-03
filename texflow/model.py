@@ -305,7 +305,7 @@ _TOP_TYPES: dict[str, type] = {
 }
 
 
-def _from_dict(data) -> any:
+def _from_dict(data):
     """Recursively deserialize dicts back to dataclass instances."""
     if isinstance(data, list):
         return [_from_dict(item) for item in data]

@@ -54,61 +54,63 @@ def compile_tex(tex_content: str, output_dir: Path | None = None, filename: str 
         )
 
     engine = "xelatex" if shutil.which("xelatex") else "pdflatex"
-    work_dir = Path(tempfile.mkdtemp(prefix="texflow_"))
-    tex_path = work_dir / f"{filename}.tex"
-    tex_path.write_text(tex_content, encoding="utf-8")
 
-    errors: list[CompileError] = []
-    warnings: list[str] = []
-    log_content = ""
+    with tempfile.TemporaryDirectory(prefix="texflow_") as tmp:
+        work_dir = Path(tmp)
+        tex_path = work_dir / f"{filename}.tex"
+        tex_path.write_text(tex_content, encoding="utf-8")
 
-    # Run twice for cross-references
-    for pass_num in range(2):
-        try:
-            proc = subprocess.run(
-                [engine, "-interaction=nonstopmode", "-halt-on-error", f"{filename}.tex"],
-                cwd=work_dir,
-                capture_output=True,
-                text=True,
-                timeout=60,
-            )
-            log_content = proc.stdout
-        except subprocess.TimeoutExpired:
-            errors.append(CompileError(message="Compilation timed out after 60 seconds"))
-            return CompileResult(success=False, tex_path=tex_path, errors=errors, log=log_content)
-        except Exception as e:
-            errors.append(CompileError(message=f"Compilation failed: {e}"))
-            return CompileResult(success=False, tex_path=tex_path, errors=errors, log=log_content)
+        errors: list[CompileError] = []
+        warnings: list[str] = []
+        log_content = ""
 
-    # Parse log for errors and warnings
-    log_path = work_dir / f"{filename}.log"
-    if log_path.exists():
-        log_content = log_path.read_text(encoding="utf-8", errors="replace")
-        errors = _parse_errors(log_content)
-        warnings = _parse_warnings(log_content)
+        # Run twice for cross-references
+        for pass_num in range(2):
+            try:
+                proc = subprocess.run(
+                    [engine, "-interaction=nonstopmode", "-halt-on-error", f"{filename}.tex"],
+                    cwd=work_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                )
+                log_content = proc.stdout
+            except subprocess.TimeoutExpired:
+                errors.append(CompileError(message="Compilation timed out after 60 seconds"))
+                return CompileResult(success=False, tex_path=tex_path, errors=errors, log=log_content)
+            except Exception as e:
+                errors.append(CompileError(message=f"Compilation failed: {e}"))
+                return CompileResult(success=False, tex_path=tex_path, errors=errors, log=log_content)
 
-    pdf_path = work_dir / f"{filename}.pdf"
-    success = pdf_path.exists() and not errors
+        # Parse log for errors and warnings
+        log_path = work_dir / f"{filename}.log"
+        if log_path.exists():
+            log_content = log_path.read_text(encoding="utf-8", errors="replace")
+            errors = _parse_errors(log_content)
+            warnings = _parse_warnings(log_content)
 
-    # Copy outputs to output_dir if specified
-    final_tex = tex_path
-    final_pdf = pdf_path if pdf_path.exists() else None
-    if output_dir and output_dir != work_dir:
-        output_dir.mkdir(parents=True, exist_ok=True)
-        final_tex = output_dir / f"{filename}.tex"
-        shutil.copy2(tex_path, final_tex)
-        if pdf_path.exists():
-            final_pdf = output_dir / f"{filename}.pdf"
-            shutil.copy2(pdf_path, final_pdf)
+        pdf_path = work_dir / f"{filename}.pdf"
+        success = pdf_path.exists() and not errors
 
-    return CompileResult(
-        success=success,
-        pdf_path=final_pdf,
-        tex_path=final_tex,
-        errors=errors,
-        warnings=warnings,
-        log=log_content,
-    )
+        # Copy outputs to output_dir if specified
+        final_tex = tex_path
+        final_pdf = pdf_path if pdf_path.exists() else None
+        if output_dir and output_dir != work_dir:
+            output_dir.mkdir(parents=True, exist_ok=True)
+            final_tex = output_dir / f"{filename}.tex"
+            shutil.copy2(tex_path, final_tex)
+            if pdf_path.exists():
+                final_pdf = output_dir / f"{filename}.pdf"
+                shutil.copy2(pdf_path, final_pdf)
+
+        return CompileResult(
+            success=success,
+            pdf_path=final_pdf,
+            tex_path=final_tex,
+            errors=errors,
+            warnings=warnings,
+            log=log_content,
+        )
 
 
 def preview_page(pdf_path: Path, page: int = 1, dpi: int = 150) -> str | None:

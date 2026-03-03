@@ -134,13 +134,13 @@ def layout_tool(
     return "\n".join(lines)
 
 
-def _validate_font(name: str) -> None:
-    """Warn if font is unknown (non-fatal)."""
+def _validate_font(name: str) -> bool:
+    """Check if font is in the known font map. Unknown fonts are still allowed."""
     fp = _DATA_DIR / "font_map.json"
     if fp.exists():
         font_map = json.loads(fp.read_text(encoding="utf-8"))
-        if name not in font_map:
-            pass  # Unknown font — still allowed, user might have it installed
+        return name in font_map
+    return False
 
 
 def _parse_margins(spec: str) -> Margins:
