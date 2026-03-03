@@ -13,6 +13,7 @@ from texflow.tools.layout import layout_tool
 from texflow.tools.edit import edit_tool
 from texflow.tools.render import render_tool
 from texflow.tools.reference import reference_tool
+from texflow.tools.queue import queue_tool
 
 mcp = FastMCP(
     "texflow",
@@ -20,7 +21,8 @@ mcp = FastMCP(
         "TeXFlow is a LaTeX document compiler. "
         "Use 'document' to create or ingest content, 'layout' to configure typesetting, "
         "'edit' to manipulate content structurally, 'render' to compile to PDF, "
-        "and 'reference' for LaTeX documentation search."
+        "and 'reference' for LaTeX documentation search. "
+        "Use 'queue' to batch multiple operations into a single call for efficiency."
     ),
 )
 
@@ -161,6 +163,34 @@ def reference(
     - example: Get working examples for a topic (table, equation, figure, list, code).
     """
     return reference_tool(action, query, description, name, error, topic, path)
+
+
+# --- Queue tool ---
+
+@mcp.tool()
+def queue(
+    operations: list[dict],
+    continue_on_error: bool = False,
+) -> str:
+    """Execute multiple operations in a single call.
+
+    Each operation is a dict with 'tool' (document, layout, edit, render, reference)
+    plus the arguments for that tool. Operations run sequentially; disk is written
+    once at the end.
+
+    Example:
+        queue(operations=[
+            {"tool": "document", "action": "create", "title": "My Doc"},
+            {"tool": "edit", "action": "insert", "block_type": "section", "title": "Intro", "level": 1},
+            {"tool": "edit", "action": "insert", "content": "Hello world.", "section": "Intro"},
+            {"tool": "layout", "columns": 2, "font": "palatino"}
+        ])
+
+    Args:
+        operations: List of operation dicts.
+        continue_on_error: If False (default), stop on first error.
+    """
+    return queue_tool(operations, continue_on_error)
 
 
 def main():

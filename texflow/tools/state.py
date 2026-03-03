@@ -12,6 +12,7 @@ from ..model import Document
 
 _current_doc: Document | None = None
 _output_dir: Path = Path.cwd()
+_save_suppressed: bool = False
 
 _SAVE_FILENAME = "document.texflow.json"
 
@@ -46,13 +47,22 @@ def set_output_dir(path: Path) -> None:
 
 
 def auto_save() -> Path | None:
-    """Auto-save the current document model to disk."""
-    if _current_doc is None:
+    """Auto-save the current document model to disk.
+
+    No-ops when save is suppressed (e.g., during queue execution).
+    """
+    if _save_suppressed or _current_doc is None:
         return None
     save_path = _current_doc.save_path
     if save_path is None:
         save_path = _output_dir / _SAVE_FILENAME
     return _current_doc.save(save_path)
+
+
+def suppress_save(suppress: bool = True) -> None:
+    """Suppress or re-enable auto-save. Used by queue to batch disk writes."""
+    global _save_suppressed
+    _save_suppressed = suppress
 
 
 def _try_load() -> Document | None:
