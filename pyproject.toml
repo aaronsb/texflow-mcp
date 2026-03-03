@@ -3,11 +3,28 @@ name = "texflow-mcp"
 version = "1.0.0"
 description = "LaTeX document compiler with MCP interface"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.12"
+authors = [
+    {name = "Aaron Bockelie", email = "aaronsb@users.noreply.github.com"},
+]
+keywords = ["mcp", "latex", "document", "typesetting", "pdf"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Text Processing :: Markup :: LaTeX",
+]
 dependencies = [
     "fastmcp>=3.0.0",
     "mistune>=3.2.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/aaronsb/texflow-mcp"
+Repository = "https://github.com/aaronsb/texflow-mcp"
+Issues = "https://github.com/aaronsb/texflow-mcp/issues"
 
 [project.scripts]
 texflow = "server:main"
