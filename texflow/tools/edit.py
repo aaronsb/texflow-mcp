@@ -14,7 +14,7 @@ from ..model import (
     Section,
     Table,
 )
-from .state import auto_save, require_doc
+from .state import auto_save, clear_confirmation, require_doc
 
 
 def edit_tool(
@@ -45,6 +45,7 @@ def edit_tool(
     Blocks within a section are addressed by 0-based index.
     Use document(action='outline') to see current structure and indices.
     """
+    clear_confirmation()
     match action:
         case "insert":
             return _insert(block_type, section, position, content, title, level,

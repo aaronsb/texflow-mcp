@@ -25,9 +25,29 @@ from .model import (
 )
 
 
+def parse_markdown_blocks(source: str, base_level: int = 1) -> list:
+    """Parse markdown into a list of blocks with heading levels relative to base_level.
+
+    Unlike ingest_markdown(), this returns blocks (not a Document) suitable for
+    appending into an existing section. Headings in the markdown become subsections
+    of the target: the shallowest heading becomes base_level + 1.
+
+    Frontmatter is stripped but not used for metadata.
+    """
+    md = mistune.create_markdown(renderer="ast", plugins=["table", "math"])
+    stripped, _ = _strip_frontmatter(source)
+    tokens = md(stripped)
+
+    blocks = _tokens_to_blocks(tokens, skip_title="")
+    _normalize_section_levels(blocks)
+    if base_level > 0:
+        _shift_section_levels(blocks, base_level)
+    return blocks
+
+
 def ingest_markdown(source: str) -> Document:
     """Parse markdown text into a Document model."""
-    md = mistune.create_markdown(renderer="ast", plugins=["table"])
+    md = mistune.create_markdown(renderer="ast", plugins=["table", "math"])
 
     # Strip YAML frontmatter before parsing (mistune sees --- as thematic_break)
     stripped, had_frontmatter = _strip_frontmatter(source)
@@ -308,3 +328,11 @@ def _normalize_section_levels(blocks: list, _offset: int | None = None) -> None:
         if isinstance(block, Section):
             block.level = max(1, block.level - _offset)
             _normalize_section_levels(block.content, _offset)
+
+
+def _shift_section_levels(blocks: list, offset: int) -> None:
+    """Add offset to all section levels recursively."""
+    for block in blocks:
+        if isinstance(block, Section):
+            block.level += offset
+            _shift_section_levels(block.content, offset)

@@ -4,15 +4,37 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ..formatters import format_blocks_as_prose, format_outline, list_section_titles
-from ..ingestion import ingest_markdown, ingest_raw
+from ..formatters import (
+    format_blocks_as_prose,
+    format_confirmation_warning,
+    format_document_summary,
+    format_ingest_result,
+    format_outline,
+    format_section_ingest_result,
+    list_section_titles,
+)
+from ..ingestion import ingest_markdown, ingest_raw, parse_markdown_blocks
 from ..model import (
     Document,
     DocumentClass,
     Layout,
     Metadata,
+    Section,
 )
-from .state import auto_save, get_output_dir, require_doc, set_doc
+from .state import (
+    auto_save,
+    check_confirmation,
+    get_doc,
+    get_output_dir,
+    require_doc,
+    set_confirmation,
+    set_doc,
+)
+
+
+def _looks_like_path(source: str) -> bool:
+    """Check if source could plausibly be a file path (not inline content)."""
+    return "\n" not in source and len(source) < 4096
 
 
 def document_tool(
@@ -35,7 +57,7 @@ def document_tool(
         case "create":
             return _create(document_class, title, author)
         case "ingest":
-            return _ingest(source)
+            return _ingest(source, section)
         case "outline":
             return _outline()
         case "read":
@@ -52,6 +74,23 @@ def _create(doc_class: str | None, title: str | None, author: str | None) -> str
         except ValueError:
             valid = ", ".join(c.value for c in DocumentClass)
             return f"Unknown document class: {doc_class}. Valid classes: {valid}"
+
+    # Guard against accidental whole-document replacement
+    existing = get_doc()
+    if existing is not None:
+        confirmed = check_confirmation(
+            "create", document_class=cls.value, title=title, author=author,
+        )
+        if confirmed is None:
+            desc = format_document_summary(existing)
+            set_confirmation(
+                "create", desc, document_class=cls.value, title=title, author=author,
+            )
+            return format_confirmation_warning(
+                desc,
+                action_verb="Creating a new document",
+                tool_hint="document(action='create')",
+            )
 
     doc = Document(
         metadata=Metadata(
@@ -75,19 +114,37 @@ def _create(doc_class: str | None, title: str | None, author: str | None) -> str
     return "\n".join(parts)
 
 
-def _ingest(source: str | None) -> str:
+def _ingest(source: str | None, section: str | None = None) -> str:
     if not source:
         return "Error: 'source' is required. Provide markdown text or a file path."
 
+    # Section-targeted ingest: append into existing section
+    if section is not None:
+        return _ingest_into_section(source, section)
+
+    # Whole-document ingest: check for destructive overwrite
+    existing = get_doc()
+    if existing is not None:
+        confirmed = check_confirmation("ingest", source=source)
+        if confirmed is None:
+            desc = format_document_summary(existing)
+            set_confirmation("ingest", desc, source=source)
+            return format_confirmation_warning(
+                desc,
+                action_verb="Ingesting",
+                tool_hint="document(action='ingest')",
+            )
+
     # Check if source is a file path
-    source_path = Path(source)
-    if source_path.exists() and source_path.is_file():
-        text = source_path.read_text(encoding="utf-8")
-        doc = ingest_markdown(text)
-        doc.save_path = get_output_dir() / "document.texflow.json"
-        set_doc(doc)
-        auto_save()
-        return f"Ingested {source_path.name} ({len(text)} chars).\n\n{format_outline(doc)}"
+    if _looks_like_path(source):
+        source_path = Path(source)
+        if source_path.exists() and source_path.is_file():
+            text = source_path.read_text(encoding="utf-8")
+            doc = ingest_markdown(text)
+            doc.save_path = get_output_dir() / "document.texflow.json"
+            set_doc(doc)
+            auto_save()
+            return format_ingest_result(source_path.name, len(text), doc)
 
     # Treat as inline markdown text
     if source.strip().startswith("#") or source.strip().startswith("---"):
@@ -97,7 +154,42 @@ def _ingest(source: str | None) -> str:
     doc.save_path = get_output_dir() / "document.texflow.json"
     set_doc(doc)
     auto_save()
-    return f"Ingested text ({len(source)} chars).\n\n{format_outline(doc)}"
+    return format_ingest_result("text", len(source), doc)
+
+
+def _ingest_into_section(source: str, section_path: str) -> str:
+    """Ingest markdown content into an existing section."""
+    doc = require_doc()
+
+    target = doc.find_section(section_path)
+    if target is None:
+        available = list_section_titles(doc.content)
+        return f"Error: Section not found: {section_path}\nAvailable sections: {', '.join(available)}"
+
+    # Read source
+    if _looks_like_path(source):
+        source_path = Path(source)
+        if source_path.exists() and source_path.is_file():
+            text = source_path.read_text(encoding="utf-8")
+            source_label = source_path.name
+        else:
+            text = source
+            source_label = f"text ({len(text)} chars)"
+    else:
+        text = source
+        source_label = f"text ({len(text)} chars)"
+
+    blocks = parse_markdown_blocks(text, base_level=target.level)
+
+    if not blocks:
+        return f"No content found in {source_label}."
+
+    target.content.extend(blocks)
+    auto_save()
+
+    block_count = len(blocks)
+    section_count = sum(1 for b in blocks if isinstance(b, Section))
+    return format_section_ingest_result(source_label, section_path, block_count, section_count)
 
 
 def _outline() -> str:

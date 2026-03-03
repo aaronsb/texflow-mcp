@@ -21,8 +21,10 @@ def reset_state(tmp_path):
     """Reset shared state before each test."""
     state._current_doc = None
     state._output_dir = tmp_path
+    state._pending_confirmation = None
     yield
     state._current_doc = None
+    state._pending_confirmation = None
 
 
 # --- Document tool ---
@@ -398,3 +400,163 @@ class TestReferenceTool:
     def test_unknown_action(self):
         result = reference_tool("nope")
         assert "Unknown action" in result
+
+
+# --- Confirmation pattern ---
+
+
+class TestConfirmationGuard:
+    def test_create_no_warning_when_no_doc(self):
+        result = document_tool("create", title="First")
+        assert "Created" in result
+        assert "Warning" not in result
+
+    def test_create_warns_when_doc_exists(self):
+        document_tool("create", title="Original")
+        result = document_tool("create", title="Replacement")
+        assert "Warning" in result
+        assert "already exists" in result
+        # Document should NOT have been replaced
+        assert state.get_doc().metadata.title == "Original"
+
+    def test_create_second_call_confirms(self):
+        document_tool("create", title="Original")
+        document_tool("create", title="Replacement")  # First: warning
+        result = document_tool("create", title="Replacement")  # Second: confirm
+        assert "Created" in result
+        assert state.get_doc().metadata.title == "Replacement"
+
+    def test_create_different_params_resets(self):
+        document_tool("create", title="Original")
+        document_tool("create", title="A")  # Warning for "A"
+        result = document_tool("create", title="B")  # Different params → new warning
+        assert "Warning" in result
+        assert state.get_doc().metadata.title == "Original"
+
+    def test_ingest_warns_when_doc_exists(self):
+        document_tool("create", title="Existing")
+        edit_tool("insert", block_type="section", title="Intro", level=1)
+        result = document_tool("ingest", source="# New\n\nContent.")
+        assert "Warning" in result
+        assert "already exists" in result
+
+    def test_ingest_second_call_confirms(self):
+        document_tool("create", title="Existing")
+        source = "# New\n\nContent."
+        document_tool("ingest", source=source)  # Warning
+        result = document_tool("ingest", source=source)  # Confirm
+        assert "Ingested" in result
+        assert state.get_doc().metadata.title == "New"
+
+    def test_ingest_section_no_confirmation(self):
+        document_tool("create", title="Existing")
+        edit_tool("insert", block_type="section", title="Intro", level=1)
+        result = document_tool("ingest", source="Some text.", section="Intro")
+        assert "Warning" not in result
+        assert "Ingested" in result
+
+    def test_confirmation_cleared_by_edit(self):
+        document_tool("create", title="Original")
+        document_tool("create", title="New")  # Warning set
+        edit_tool("insert", block_type="paragraph", content="Text")  # Clears confirmation
+        result = document_tool("create", title="New")  # Should warn again
+        assert "Warning" in result
+
+    def test_confirmation_cleared_by_layout(self):
+        document_tool("create", title="Original")
+        document_tool("create", title="New")  # Warning set
+        layout_tool(columns=2)  # Clears confirmation
+        result = document_tool("create", title="New")  # Should warn again
+        assert "Warning" in result
+
+    def test_confirmation_expired(self):
+        import time
+        from unittest.mock import patch
+
+        document_tool("create", title="Original")
+        document_tool("create", title="New")  # Warning set
+
+        # Advance time past TTL
+        with patch("texflow.tools.state.time") as mock_time:
+            mock_time.monotonic.return_value = time.monotonic() + 120
+            result = document_tool("create", title="New")  # Should warn again
+        assert "Warning" in result
+
+
+# --- Section-targeted ingest ---
+
+
+class TestSectionIngest:
+    def test_ingest_into_section(self):
+        document_tool("create", title="Report")
+        edit_tool("insert", block_type="section", title="Introduction", level=1)
+        result = document_tool("ingest", source="Some intro text.", section="Introduction")
+        assert "Ingested" in result
+        assert "Introduction" in result
+        sec = state.get_doc().find_section("Introduction")
+        assert len(sec.content) == 1
+
+    def test_ingest_into_section_with_headings(self):
+        document_tool("create", title="Report")
+        edit_tool("insert", block_type="section", title="Methods", level=1)
+        md = "## Data Collection\n\nDetails.\n\n## Analysis\n\nMore details.\n"
+        result = document_tool("ingest", source=md, section="Methods")
+        assert "Ingested" in result
+        assert "subsection" in result
+        sec = state.get_doc().find_section("Methods")
+        subsections = [b for b in sec.content if hasattr(b, "title")]
+        assert len(subsections) == 2
+        # Subsections should be level 2 (children of level-1 Methods)
+        assert subsections[0].level == 2
+        assert subsections[1].level == 2
+
+    def test_ingest_into_nested_section(self):
+        document_tool("create", title="Report")
+        edit_tool("insert", block_type="section", title="Methods", level=1)
+        edit_tool("insert", block_type="section", title="Data", level=2, section="Methods")
+        md = "## Source A\n\nDetails.\n"
+        result = document_tool("ingest", source=md, section="Methods/Data")
+        assert "Ingested" in result
+        sec = state.get_doc().find_section("Methods/Data")
+        subsections = [b for b in sec.content if hasattr(b, "title")]
+        assert len(subsections) == 1
+        # Data is level 2, so children should be level 3
+        assert subsections[0].level == 3
+
+    def test_ingest_into_nonexistent_section(self):
+        document_tool("create", title="Report")
+        result = document_tool("ingest", source="Text.", section="Nonexistent")
+        assert "Error" in result
+        assert "not found" in result
+
+    def test_ingest_from_file_into_section(self, tmp_path):
+        md_file = tmp_path / "intro.md"
+        md_file.write_text("First paragraph.\n\nSecond paragraph.\n")
+        document_tool("create", title="Report")
+        edit_tool("insert", block_type="section", title="Intro", level=1)
+        result = document_tool("ingest", source=str(md_file), section="Intro")
+        assert "Ingested intro.md" in result
+        sec = state.get_doc().find_section("Intro")
+        assert len(sec.content) == 2
+
+    def test_ingest_preserves_existing_content(self):
+        document_tool("create", title="Report")
+        edit_tool("insert", block_type="section", title="Intro", level=1)
+        edit_tool("insert", content="Existing text.", section="Intro")
+        document_tool("ingest", source="New text.", section="Intro")
+        sec = state.get_doc().find_section("Intro")
+        assert len(sec.content) == 2  # Both existing and new
+
+
+# --- Queue + confirmation ---
+
+
+class TestQueueConfirmation:
+    def test_queue_stops_on_confirmation_warning(self):
+        from texflow.tools.queue import queue_tool
+
+        document_tool("create", title="Existing")
+        result = queue_tool([
+            {"tool": "document", "action": "create", "title": "Replacement"},
+        ])
+        assert "Warning" in result
