@@ -4,7 +4,7 @@ __pycache__/
 build/
 dist/
 wheels/
-*.egg-info
+*.egg-info/
 
 # Virtual environments
 .venv
@@ -14,3 +14,4 @@ content/
 *.mar
 test_*.md
 test_*.tex
+*.texflow.json

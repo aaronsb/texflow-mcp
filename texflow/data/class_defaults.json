@@ -1,0 +1,44 @@
+{
+  "article": {
+    "description": "Short documents: papers, reports, essays",
+    "max_section_depth": 3,
+    "has_chapters": false,
+    "default_font_size": "12pt",
+    "default_paper": "a4paper"
+  },
+  "report": {
+    "description": "Longer documents with chapters: technical reports, theses",
+    "max_section_depth": 3,
+    "has_chapters": true,
+    "default_font_size": "12pt",
+    "default_paper": "a4paper"
+  },
+  "book": {
+    "description": "Full books with parts, chapters, front/back matter",
+    "max_section_depth": 3,
+    "has_chapters": true,
+    "default_font_size": "12pt",
+    "default_paper": "a4paper"
+  },
+  "memoir": {
+    "description": "Flexible class combining article/book features",
+    "max_section_depth": 3,
+    "has_chapters": true,
+    "default_font_size": "12pt",
+    "default_paper": "a4paper"
+  },
+  "letter": {
+    "description": "Formal letters",
+    "max_section_depth": 0,
+    "has_chapters": false,
+    "default_font_size": "12pt",
+    "default_paper": "letterpaper"
+  },
+  "beamer": {
+    "description": "Presentations and slides",
+    "max_section_depth": 2,
+    "has_chapters": false,
+    "default_font_size": "11pt",
+    "default_paper": null
+  }
+}

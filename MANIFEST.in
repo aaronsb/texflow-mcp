@@ -1,6 +1,4 @@
 include README.md
 include pyproject.toml
-recursive-include src/data *
-recursive-include config *.json
-include texflow.py
-include texflow_unified.py
+include server.py
+recursive-include texflow/data *

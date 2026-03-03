@@ -1,29 +1,33 @@
 [project]
-name = "texflow"
-version = "0.2.0"
-description = "TeXFlow - A document authoring and composition MCP server"
+name = "texflow-mcp"
+version = "1.0.0"
+description = "LaTeX document compiler with MCP interface"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
-    "mcp[cli]>=1.9.1",
-    "pillow>=11.2.1",
-    "pycups>=2.0.4",
-    "python-magic>=0.4.27",
+    "fastmcp>=3.0.0",
+    "mistune>=3.2.0",
 ]
 
 [project.scripts]
-texflow = "texflow_unified:main"
+texflow = "server:main"
 
 [build-system]
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = {find = {where = ["."], include = ["src*", "config*"]}}
-py-modules = ["texflow", "texflow_unified"]
+packages = {find = {where = ["."], include = ["texflow*"]}}
+py-modules = ["server"]
 include-package-data = true
 
 [tool.setuptools.package-data]
-src = ["data/**/*"]
-config = ["*.json"]
-"*" = ["config/**/*"]
+texflow = ["data/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
