@@ -1,0 +1,46 @@
+# ADR Configuration for TeXFlow MCP
+# Defines domain numbering and validation rules.
+# Used by: docs/scripts/adr
+
+project_name: TeXFlow MCP
+
+# Domain Number Series
+domains:
+  core:
+    range: [100, 199]
+    name: Core
+    description: Document model, serialization, compilation pipeline
+    folder: core
+
+  tools:
+    range: [200, 299]
+    name: Tools
+    description: MCP tool design, queue operations, workflow
+    folder: tools
+
+  integration:
+    range: [300, 399]
+    name: Integration
+    description: MCP protocol, publishing, deployment
+    folder: integration
+
+# Valid ADR statuses
+statuses:
+  - Draft
+  - Proposed
+  - Accepted
+  - Superseded
+  - Deprecated
+
+# Default values for new ADRs
+defaults:
+  deciders: [aaronsb]
+  status: Draft
+
+# Legacy ADR range (pre-domain numbering)
+legacy:
+  range: [1, 99]
+  label: "Legacy"
+
+# Viewer command for `adr view`
+viewer: cat {file}
