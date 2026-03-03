@@ -7,7 +7,7 @@ from pathlib import Path
 
 from ..formatters import format_layout
 from ..model import DocumentClass, HeaderFooter, Layout, Margins
-from .state import auto_save, require_doc
+from .state import auto_save, clear_confirmation, require_doc
 
 _DATA_DIR = Path(__file__).parent.parent / "data"
 
@@ -36,6 +36,7 @@ def layout_tool(
     Only provided parameters are changed; others are left as-is.
     Returns the current full layout configuration after changes.
     """
+    clear_confirmation()
     doc = require_doc()
     lo = doc.layout
     changes: list[str] = []

@@ -85,6 +85,7 @@ def queue_tool(
 _ERROR_PREFIXES = (
     "Error:", "Unknown action", "Unknown block_type", "No document loaded",
     "Section not found", "File not found", "Compilation failed",
+    "Warning:",
 )
 
 
