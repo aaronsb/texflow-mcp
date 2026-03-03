@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..compiler import compile_tex, preview_page
+from ..formatters import format_compile_result
 from ..serializer import serialize
 from .state import auto_save, get_output_dir, require_doc
 
@@ -46,34 +47,8 @@ def _compile(output_path: str | None) -> str:
     result = compile_tex(tex, output_dir=out_dir)
     _last_result = result
 
-    lines: list[str] = []
-    if result.success:
-        lines.append(f"Compilation successful.")
-        if result.pdf_path:
-            lines.append(f"PDF: {result.pdf_path}")
-        if result.tex_path:
-            lines.append(f"TeX: {result.tex_path}")
-    else:
-        lines.append("Compilation failed.")
-        if result.tex_path:
-            lines.append(f"TeX written to: {result.tex_path}")
-        if result.errors:
-            lines.append("")
-            lines.append("Errors:")
-            for err in result.errors:
-                loc = f" (line {err.line})" if err.line else ""
-                lines.append(f"  - {err.message}{loc}")
-
-    if result.warnings:
-        lines.append("")
-        lines.append(f"Warnings ({len(result.warnings)}):")
-        for w in result.warnings[:5]:
-            lines.append(f"  - {w}")
-        if len(result.warnings) > 5:
-            lines.append(f"  ... and {len(result.warnings) - 5} more")
-
     auto_save()
-    return "\n".join(lines)
+    return format_compile_result(result)
 
 
 def _preview(page: int, dpi: int) -> str:

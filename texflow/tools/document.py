@@ -4,14 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ..formatters import format_blocks_as_prose, format_outline, list_section_titles
 from ..ingestion import ingest_markdown, ingest_raw
 from ..model import (
     Document,
     DocumentClass,
     Layout,
     Metadata,
-    Paragraph,
-    Section,
 )
 from .state import auto_save, get_output_dir, require_doc, set_doc
 
@@ -88,7 +87,7 @@ def _ingest(source: str | None) -> str:
         doc.save_path = get_output_dir() / "document.texflow.json"
         set_doc(doc)
         auto_save()
-        return f"Ingested {source_path.name} ({len(text)} chars).\n\n{_format_outline(doc)}"
+        return f"Ingested {source_path.name} ({len(text)} chars).\n\n{format_outline(doc)}"
 
     # Treat as inline markdown text
     if source.strip().startswith("#") or source.strip().startswith("---"):
@@ -98,12 +97,12 @@ def _ingest(source: str | None) -> str:
     doc.save_path = get_output_dir() / "document.texflow.json"
     set_doc(doc)
     auto_save()
-    return f"Ingested text ({len(source)} chars).\n\n{_format_outline(doc)}"
+    return f"Ingested text ({len(source)} chars).\n\n{format_outline(doc)}"
 
 
 def _outline() -> str:
     doc = require_doc()
-    return _format_outline(doc)
+    return format_outline(doc)
 
 
 def _read(section_path: str | None) -> str:
@@ -111,74 +110,13 @@ def _read(section_path: str | None) -> str:
 
     if not section_path:
         # Return all content as prose
-        return _blocks_to_prose(doc.content)
+        return format_blocks_as_prose(doc.content)
 
     sec = doc.find_section(section_path)
     if sec is None:
-        available = _list_section_titles(doc.content)
+        available = list_section_titles(doc.content)
         return f"Section not found: {section_path}\nAvailable sections: {', '.join(available)}"
 
-    return _blocks_to_prose(sec.content)
+    return format_blocks_as_prose(sec.content)
 
 
-# --- Helpers ---
-
-def _format_outline(doc: Document) -> str:
-    lines = ["Document outline:"]
-    if doc.metadata.title:
-        lines.append(f"  Title: {doc.metadata.title}")
-    if doc.metadata.author:
-        lines.append(f"  Author: {doc.metadata.author}")
-    lines.append(f"  Class: {doc.layout.document_class.value}")
-    lines.append(f"  Columns: {doc.layout.columns}")
-    lines.append("")
-
-    if not doc.content:
-        lines.append("  (empty)")
-    else:
-        _outline_blocks(doc.content, lines, indent=2)
-
-    return "\n".join(lines)
-
-
-def _outline_blocks(blocks: list, lines: list[str], indent: int = 0) -> None:
-    prefix = " " * indent
-    for i, block in enumerate(blocks):
-        if isinstance(block, Section):
-            count = len([b for b in block.content if not isinstance(b, Section)])
-            sub_count = len([b for b in block.content if isinstance(b, Section)])
-            info = f"{count} blocks"
-            if sub_count:
-                info += f", {sub_count} subsections"
-            lines.append(f"{prefix}[{i}] Section: {block.title} ({info})")
-            _outline_blocks(block.content, lines, indent + 2)
-        else:
-            type_name = type(block).__name__
-            preview = ""
-            if isinstance(block, Paragraph):
-                preview = f": {block.text[:60]}..." if len(block.text) > 60 else f": {block.text}"
-            lines.append(f"{prefix}[{i}] {type_name}{preview}")
-
-
-def _blocks_to_prose(blocks: list) -> str:
-    parts: list[str] = []
-    for block in blocks:
-        if isinstance(block, Section):
-            parts.append(f"### {block.title}")
-            parts.append(_blocks_to_prose(block.content))
-        elif isinstance(block, Paragraph):
-            parts.append(block.text)
-        else:
-            type_name = type(block).__name__
-            parts.append(f"[{type_name}]")
-    return "\n\n".join(parts)
-
-
-def _list_section_titles(blocks: list, prefix: str = "") -> list[str]:
-    titles: list[str] = []
-    for block in blocks:
-        if isinstance(block, Section):
-            path = f"{prefix}/{block.title}" if prefix else block.title
-            titles.append(path)
-            titles.extend(_list_section_titles(block.content, path))
-    return titles

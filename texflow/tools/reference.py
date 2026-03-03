@@ -6,6 +6,8 @@ import json
 import re
 from pathlib import Path
 
+from ..formatters import truncate_list
+
 _DATA_DIR = Path(__file__).parent.parent / "data"
 _REF_DIR = _DATA_DIR / "latex_reference"
 
@@ -139,9 +141,9 @@ def _search(query: str | None) -> str:
     if not results:
         return f"No results for '{query}'."
 
-    results = results[:20]
-    header = f"Found {len(results)} results for '{query}':\n"
-    return header + "\n".join(results)
+    header = f"Found {len(results)} results for '{query}':"
+    truncated = truncate_list(results, 20, "more results")
+    return header + "\n" + "\n".join(truncated)
 
 
 def _find_symbol(description: str | None) -> str:
@@ -166,10 +168,9 @@ def _find_symbol(description: str | None) -> str:
     if not matches:
         return f"No symbols matching '{description}'."
 
-    lines = [f"Found {len(matches)} symbols matching '{description}':"]
-    for _, line in matches[:15]:
-        lines.append(line)
-    return "\n".join(lines)
+    match_lines = [line for _, line in matches]
+    truncated = truncate_list(match_lines, 15, "more symbols")
+    return f"Found {len(matches)} symbols matching '{description}':\n" + "\n".join(truncated)
 
 
 def _package_info(name: str | None) -> str:
@@ -193,24 +194,28 @@ def _package_info(name: str | None) -> str:
 
     if info.get("options"):
         lines.append("  Options:")
-        for opt in info["options"][:10]:
+        opt_lines = []
+        for opt in info["options"]:
             if isinstance(opt, dict):
-                lines.append(f"    {opt.get('name', '')}: {opt.get('description', '')}")
+                opt_lines.append(f"    {opt.get('name', '')}: {opt.get('description', '')}")
             else:
-                lines.append(f"    {opt}")
+                opt_lines.append(f"    {opt}")
+        lines.extend(truncate_list(opt_lines, 10, "more options"))
 
     if info.get("commands"):
         lines.append("  Commands:")
-        for cmd in info["commands"][:10]:
+        cmd_lines = []
+        for cmd in info["commands"]:
             if isinstance(cmd, dict):
-                lines.append(f"    {cmd.get('name', '')}: {cmd.get('description', '')}")
+                cmd_lines.append(f"    {cmd.get('name', '')}: {cmd.get('description', '')}")
             else:
-                lines.append(f"    {cmd}")
+                cmd_lines.append(f"    {cmd}")
+        lines.extend(truncate_list(cmd_lines, 10, "more commands"))
 
     if info.get("examples"):
         lines.append("  Examples:")
-        for ex in info["examples"][:3]:
-            lines.append(f"    {ex}")
+        ex_lines = [f"    {ex}" for ex in info["examples"]]
+        lines.extend(truncate_list(ex_lines, 3, "more examples"))
 
     return "\n".join(lines)
 
