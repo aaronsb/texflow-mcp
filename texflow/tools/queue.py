@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from ..formatters import status_icon
 from .state import auto_save, suppress_save
 from .document import document_tool
 from .layout import layout_tool
@@ -128,7 +129,7 @@ def _format_results(
     lines.append("")
 
     for idx, status, msg in results:
-        icon = "ok" if status == "ok" else "ERR"
+        icon = status_icon(status == "ok")
         # First line of result only for compact display
         first_line = msg.split("\n")[0]
         lines.append(f"  [{idx + 1}] {icon}: {first_line}")
