@@ -1,5 +1,5 @@
 [project]
-name = "texflow"
+name = "texflow-mcp"
 version = "1.0.0"
 description = "LaTeX document compiler with MCP interface"
 readme = "README.md"
