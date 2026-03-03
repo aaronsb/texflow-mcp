@@ -1,0 +1,21 @@
+{
+  "palatino": {"package": "palatino"},
+  "times": {"package": "mathptmx"},
+  "charter": {"package": "charter"},
+  "bookman": {"package": "bookman"},
+  "libertinus": {"package": "libertinus"},
+  "newcent": {"package": "newcent"},
+  "utopia": {"package": "fourier"},
+  "garamond": {"package": "ebgaramond"},
+  "source-serif": {"package": "sourceserifpro"},
+  "source-sans": {"package": "sourcesanspro"},
+  "source-code-pro": {"package": "sourcecodepro"},
+  "fira-sans": {"package": "FiraSans"},
+  "fira-mono": {"package": "FiraMono"},
+  "inconsolata": {"package": "inconsolata"},
+  "lmodern": {"package": "lmodern"},
+  "computer-modern": {"package": null, "note": "Default LaTeX font, no package needed"},
+  "roboto": {"package": "roboto"},
+  "noto-serif": {"package": "noto-serif"},
+  "noto-sans": {"package": "noto-sans"}
+}
