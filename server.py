@@ -13,6 +13,8 @@ from texflow.tools.layout import layout_tool
 from texflow.tools.edit import edit_tool
 from texflow.tools.render import render_tool
 from texflow.tools.reference import reference_tool
+from texflow.tools.queue import queue_tool
+from texflow.tools.workflow import state_hint, error_hint, WORKFLOW_MAP
 
 mcp = FastMCP(
     "texflow",
@@ -20,9 +22,25 @@ mcp = FastMCP(
         "TeXFlow is a LaTeX document compiler. "
         "Use 'document' to create or ingest content, 'layout' to configure typesetting, "
         "'edit' to manipulate content structurally, 'render' to compile to PDF, "
-        "and 'reference' for LaTeX documentation search."
+        "'reference' for LaTeX documentation search, and "
+        "'queue' to batch multiple operations in one call. "
+        "Every response includes a workflow state hint showing where you are and what to do next."
     ),
 )
+
+
+def _with_hints(result: str) -> str:
+    """Append workflow state hint and error guidance to a tool result."""
+    extra = error_hint(result)
+    return result + extra + state_hint()
+
+
+# --- Workflow resource ---
+
+@mcp.resource("texflow://workflow")
+def workflow_map() -> str:
+    """TeXFlow workflow map showing states and transitions."""
+    return WORKFLOW_MAP + "\n" + state_hint()
 
 
 # --- Document tool ---
@@ -44,7 +62,7 @@ def document(
     - outline: Show document structure (sections, block counts).
     - read: Read content of a specific section as prose text.
     """
-    return document_tool(action, document_class, title, author, source, section)
+    return _with_hints(document_tool(action, document_class, title, author, source, section))
 
 
 # --- Layout tool ---
@@ -74,12 +92,12 @@ def layout(
     Only provided parameters are changed; others are left as-is.
     Returns the current full layout configuration after changes.
     """
-    return layout_tool(
+    return _with_hints(layout_tool(
         columns, font, font_sans, font_mono, font_size, paper, margins,
         header_left, header_center, header_right,
         footer_left, footer_center, footer_right,
         toc, lof, lot, line_spacing,
-    )
+    ))
 
 
 # --- Edit tool ---
@@ -113,10 +131,10 @@ def edit(
     Blocks within a section are addressed by 0-based index.
     Use document(action='outline') to see current structure and indices.
     """
-    return edit_tool(
+    return _with_hints(edit_tool(
         action, block_type, section, position, content, title, level,
         language, path, caption, headers, rows, target_section, target_position,
-    )
+    ))
 
 
 # --- Render tool ---
@@ -135,7 +153,7 @@ def render(
     - preview: Render a specific page as base64 PNG image.
     - tex: Export the raw .tex source. Returns the LaTeX content.
     """
-    return render_tool(action, output_path, page, dpi)
+    return _with_hints(render_tool(action, output_path, page, dpi))
 
 
 # --- Reference tool ---
@@ -160,7 +178,37 @@ def reference(
     - error_help: Get help for LaTeX error messages.
     - example: Get working examples for a topic (table, equation, figure, list, code).
     """
-    return reference_tool(action, query, description, name, error, topic, path)
+    return _with_hints(reference_tool(action, query, description, name, error, topic, path))
+
+
+# --- Queue tool ---
+
+@mcp.tool()
+def queue(
+    operations: list[dict],
+    continue_on_error: bool = False,
+) -> str:
+    """Execute multiple operations in a single call.
+
+    Each operation is a dict with 'tool' (document, layout, edit, render, reference)
+    plus the arguments for that tool. Operations run sequentially; disk is written
+    once at the end.
+
+    Example:
+        queue(operations=[
+            {"tool": "document", "action": "create", "title": "My Doc"},
+            {"tool": "edit", "action": "insert", "block_type": "section", "title": "Intro", "level": 1},
+            {"tool": "edit", "action": "insert", "content": "Hello world.", "section": "Intro"},
+            {"tool": "layout", "columns": 2, "font": "palatino"}
+        ])
+
+    Args:
+        operations: List of operation dicts.
+        continue_on_error: If False (default), stop on first error.
+    """
+    # Queue gets summary + state hint, no per-operation hints
+    result = queue_tool(operations, continue_on_error)
+    return result + state_hint()
 
 
 def main():
