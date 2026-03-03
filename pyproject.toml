@@ -1,6 +1,6 @@
 [project]
 name = "texflow-mcp"
-version = "1.1.0"
+version = "1.1.1"
 description = "LaTeX document compiler with MCP interface"
 readme = "README.md"
 license = "MIT"
@@ -28,6 +28,7 @@ Issues = "https://github.com/aaronsb/texflow-mcp/issues"
 
 [project.scripts]
 texflow = "server:main"
+texflow-mcp = "server:main"
 
 [build-system]
 requires = ["setuptools", "wheel"]
