@@ -1,7 +1,7 @@
 """Shared session state for MCP tools.
 
 Holds the current in-memory Document and output directory.
-The document auto-saves to disk after mutations.
+The document auto-saves to disk after mutations and reloads on startup.
 """
 
 from __future__ import annotations
@@ -13,8 +13,13 @@ from ..model import Document
 _current_doc: Document | None = None
 _output_dir: Path = Path.cwd()
 
+_SAVE_FILENAME = "document.texflow.json"
+
 
 def get_doc() -> Document | None:
+    global _current_doc
+    if _current_doc is None:
+        _current_doc = _try_load()
     return _current_doc
 
 
@@ -24,9 +29,10 @@ def set_doc(doc: Document) -> None:
 
 
 def require_doc() -> Document:
-    if _current_doc is None:
+    doc = get_doc()
+    if doc is None:
         raise ValueError("No document loaded. Use document(action='create') or document(action='ingest') first.")
-    return _current_doc
+    return doc
 
 
 def get_output_dir() -> Path:
@@ -45,5 +51,16 @@ def auto_save() -> Path | None:
         return None
     save_path = _current_doc.save_path
     if save_path is None:
-        save_path = _output_dir / "document.texflow.json"
+        save_path = _output_dir / _SAVE_FILENAME
     return _current_doc.save(save_path)
+
+
+def _try_load() -> Document | None:
+    """Try to load a previously saved document from the output directory."""
+    save_path = _output_dir / _SAVE_FILENAME
+    if save_path.exists():
+        try:
+            return Document.load(save_path)
+        except Exception:
+            return None
+    return None

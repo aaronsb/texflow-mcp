@@ -382,9 +382,24 @@ def _serialize_table(tbl: Table) -> str:
     return "\n".join(lines)
 
 
+_LISTINGS_LANGUAGES = {
+    "abap", "acm", "acsl", "ada", "algol", "ant", "assembler", "awk",
+    "bash", "basic", "c", "caml", "clean", "cobol", "comal", "command.com",
+    "comsol", "csh", "delphi", "eiffel", "elan", "elisp", "erlang", "euphoria",
+    "fortran", "gcl", "gnuplot", "go", "haskell", "html", "idl", "inform",
+    "java", "jvmis", "ksh", "lisp", "llvm", "logo", "lua", "make",
+    "mathematica", "matlab", "mercury", "metapost", "miranda", "ml", "modula-2",
+    "mupad", "nastran", "oberon-2", "ocl", "octave", "oz", "pascal", "perl",
+    "php", "plasm", "pli", "postscript", "pov", "prolog", "promela", "python",
+    "r", "reduce", "rexx", "rsl", "ruby", "rust", "s", "sas", "scala", "scilab",
+    "sh", "shelxl", "simula", "sparql", "sql", "swift", "tcl", "tex",
+    "vbscript", "verilog", "vhdl", "vrml", "xml", "xslt",
+}
+
+
 def _serialize_code(cb: CodeBlock) -> str:
     options: list[str] = []
-    if cb.language:
+    if cb.language and cb.language.lower() in _LISTINGS_LANGUAGES:
         options.append(f"language={cb.language}")
     if cb.caption:
         options.append(f"caption={{{escape_latex(cb.caption)}}}")
