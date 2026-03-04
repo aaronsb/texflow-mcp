@@ -292,6 +292,13 @@ def test_serialize_raw_latex():
     assert "\\clearpage" in tex
 
 
+def test_serialize_raw_tikz_includes_package():
+    """RawLatex with tikzpicture triggers \\usepackage{tikz} in preamble."""
+    doc = Document(content=[RawLatex(tex="\\begin{tikzpicture}\\draw (0,0) circle (1);\\end{tikzpicture}")])
+    tex = serialize(doc)
+    assert "\\usepackage{tikz}" in tex
+
+
 def test_serialize_font_packages():
     doc = Document(layout=Layout(font_main="palatino"))
     tex = serialize(doc)

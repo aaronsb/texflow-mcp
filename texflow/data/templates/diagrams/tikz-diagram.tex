@@ -1,0 +1,18 @@
+---
+name: TikZ Diagram
+category: diagrams
+description: Basic TikZ diagram with nodes and edges
+packages:
+  - tikz
+preamble:
+  - \usetikzlibrary{arrows.meta,positioning}
+---
+\begin{tikzpicture}[
+  node distance=2cm,
+  every node/.style={draw, rounded corners, minimum height=1cm}
+]
+  % Replace with your diagram content
+  \node (a) {Node A};
+  \node (b) [right=of a] {Node B};
+  \draw[->] (a) -- (b);
+\end{tikzpicture}

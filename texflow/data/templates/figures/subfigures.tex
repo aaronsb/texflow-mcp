@@ -1,0 +1,27 @@
+---
+name: Side-by-Side Subfigures
+category: figures
+description: Two subfigures side by side with individual captions
+packages:
+  - subcaption
+  - graphicx
+preamble: []
+---
+\begin{figure}[htbp]
+\centering
+\begin{subfigure}{0.48\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figure-a.png}
+  \caption{First subfigure}
+  \label{fig:sub-a}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figure-b.png}
+  \caption{Second subfigure}
+  \label{fig:sub-b}
+\end{subfigure}
+\caption{Overall caption for both subfigures}
+\label{fig:both}
+\end{figure}

@@ -204,3 +204,81 @@ def test_list_block():
     # Should find the list, and the paragraph nested in the second item
     assert any(isinstance(b, ItemList) for b in blocks)
     assert any(isinstance(b, Paragraph) and b.text == "Detail" for b in blocks)
+
+
+# --- Raw LaTeX package detection ---
+
+
+def test_required_packages_raw_tikz():
+    doc = Document(content=[RawLatex(tex="\\begin{tikzpicture}\n\\draw (0,0) -- (1,1);\n\\end{tikzpicture}")])
+    assert "tikz" in doc.required_packages
+
+
+def test_required_packages_raw_minted():
+    doc = Document(content=[RawLatex(tex="\\begin{minted}{python}\nprint('hi')\n\\end{minted}")])
+    assert "minted" in doc.required_packages
+
+
+def test_required_packages_raw_includegraphics():
+    doc = Document(content=[RawLatex(tex="\\includegraphics[width=5cm]{img.png}")])
+    assert "graphicx" in doc.required_packages
+
+
+def test_required_packages_raw_multirow():
+    doc = Document(content=[RawLatex(tex="\\multirow{2}{*}{cell}")])
+    assert "multirow" in doc.required_packages
+
+
+def test_required_packages_raw_algorithm():
+    doc = Document(content=[RawLatex(tex="\\begin{algorithm}\n\\caption{Sort}\n\\end{algorithm}")])
+    assert "algorithm2e" in doc.required_packages
+
+
+def test_required_packages_raw_landscape():
+    doc = Document(content=[RawLatex(tex="\\begin{landscape}\nwide content\n\\end{landscape}")])
+    assert "pdflscape" in doc.required_packages
+
+
+def test_required_packages_raw_longtable():
+    doc = Document(content=[RawLatex(tex="\\begin{longtable}{|c|c|}\nA & B\n\\end{longtable}")])
+    assert "longtable" in doc.required_packages
+
+
+def test_required_packages_raw_subfigure():
+    doc = Document(content=[RawLatex(tex="\\begin{subfigure}{0.5\\textwidth}\n\\end{subfigure}")])
+    assert "subcaption" in doc.required_packages
+
+
+def test_required_packages_raw_booktabs():
+    doc = Document(content=[RawLatex(tex="\\toprule\nA & B \\\\\n\\midrule\n1 & 2 \\\\\n\\bottomrule")])
+    assert "booktabs" in doc.required_packages
+
+
+def test_required_packages_raw_xcolor():
+    doc = Document(content=[RawLatex(tex="\\textcolor{red}{warning}")])
+    assert "xcolor" in doc.required_packages
+
+
+def test_required_packages_raw_no_match():
+    """Plain raw LaTeX without recognizable patterns adds no extra packages."""
+    doc = Document(content=[RawLatex(tex="\\newpage")])
+    base = Document().required_packages
+    assert doc.required_packages == base
+
+
+def test_required_packages_raw_multiple_packages():
+    """A single RawLatex block can trigger multiple packages."""
+    doc = Document(content=[RawLatex(tex="\\begin{tikzpicture}\n\\includegraphics{x.png}\n\\end{tikzpicture}")])
+    pkgs = doc.required_packages
+    assert "tikz" in pkgs
+    assert "graphicx" in pkgs
+
+
+def test_required_packages_raw_nested_in_section():
+    """RawLatex inside a section is still detected via _walk_blocks."""
+    doc = Document(content=[
+        Section(title="Diagrams", level=1, content=[
+            RawLatex(tex="\\begin{tikzpicture}\\end{tikzpicture}")
+        ])
+    ])
+    assert "tikz" in doc.required_packages

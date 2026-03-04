@@ -86,6 +86,7 @@ def reference_tool(
     - check_style: Analyze a .tex file for best practices.
     - error_help: Get help for LaTeX error messages.
     - example: Get working examples for a topic.
+    - templates: Browse available LaTeX templates. Optionally filter by category or slug.
     """
     match action:
         case "search":
@@ -100,8 +101,10 @@ def reference_tool(
             return _error_help(error)
         case "example":
             return _get_example(topic)
+        case "templates":
+            return _list_templates(query)
         case _:
-            return f"Unknown action: {action}. Valid: search, symbol, package, check_style, error_help, example"
+            return f"Unknown action: {action}. Valid: search, symbol, package, check_style, error_help, example, templates"
 
 
 def _search(query: str | None) -> str:
@@ -380,6 +383,40 @@ _EXAMPLES = {
         "  \\end{lstlisting}"
     ),
 }
+
+
+def _list_templates(query: str | None) -> str:
+    from ..templates import list_templates, format_template_list, get_template
+
+    if not query:
+        return format_template_list(list_templates())
+
+    # Exact slug match
+    tmpl = get_template(query)
+    if tmpl:
+        lines = [
+            f"Template: {tmpl.name} ({tmpl.slug})",
+            f"  Category: {tmpl.category}",
+            f"  Description: {tmpl.description}",
+        ]
+        if tmpl.packages:
+            lines.append(f"  Packages: {', '.join(tmpl.packages)}")
+        if tmpl.preamble:
+            lines.append(f"  Preamble: {len(tmpl.preamble)} line(s)")
+        lines.append(f"\n{tmpl.body}")
+        return "\n".join(lines)
+
+    # Filter by category
+    matches = list_templates(category=query)
+    if not matches:
+        # Fuzzy search in name/description/slug
+        q = query.lower()
+        matches = [
+            t for t in list_templates()
+            if q in t.name.lower() or q in t.description.lower() or q in t.slug.lower()
+        ]
+
+    return format_template_list(matches)
 
 
 def _get_example(topic: str | None) -> str:

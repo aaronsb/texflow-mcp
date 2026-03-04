@@ -1,0 +1,30 @@
+---
+name: Long Table
+category: tables
+description: Multi-page table that breaks across pages
+packages:
+  - longtable
+  - booktabs
+preamble: []
+---
+\begin{longtable}{lcc}
+\toprule
+\textbf{Column 1} & \textbf{Column 2} & \textbf{Column 3} \\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{Column 1} & \textbf{Column 2} & \textbf{Column 3} \\
+\midrule
+\endhead
+
+\midrule
+\multicolumn{3}{r}{\textit{Continued on next page}} \\
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+Row 1 & Data & Data \\
+Row 2 & Data & Data \\
+\end{longtable}

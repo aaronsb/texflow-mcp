@@ -7,6 +7,7 @@ The AI manipulates this model; the serializer converts it to .tex.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -152,9 +153,37 @@ class Equation:
 @dataclass
 class RawLatex:
     tex: str  # Escape hatch: verbatim LaTeX
+    template: str | None = None  # Template slug used to create this block
 
 
 Block = Union[Section, Paragraph, Figure, Table, CodeBlock, ItemList, Equation, RawLatex]
+
+
+# --- Raw LaTeX package detection ---
+
+_RAW_PACKAGE_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"\\begin\{tikzpicture\}"), "tikz"),
+    (re.compile(r"\\begin\{tikzcd\}"), "tikz-cd"),
+    (re.compile(r"\\includegraphics"), "graphicx"),
+    (re.compile(r"\\multirow\b"), "multirow"),
+    (re.compile(r"\\begin\{algorithm\}"), "algorithm2e"),
+    (re.compile(r"\\begin\{landscape\}"), "pdflscape"),
+    (re.compile(r"\\begin\{longtable\}"), "longtable"),
+    (re.compile(r"\\begin\{minted\}"), "minted"),
+    (re.compile(r"\\begin\{subfigure\}"), "subcaption"),
+    (re.compile(r"\\begin\{lstlisting\}"), "listings"),
+    (re.compile(r"\\begin\{align"), "amsmath"),
+    (re.compile(r"\\begin\{gather"), "amsmath"),
+    (re.compile(r"\\toprule|\\midrule|\\bottomrule"), "booktabs"),
+    (re.compile(r"\\href\{|\\url\{"), "hyperref"),
+    (re.compile(r"\\textcolor\{|\\colorbox\{"), "xcolor"),
+    (re.compile(r"\\rowcolor\{|\\cellcolor\{"), "colortbl"),
+    (re.compile(r"\\begin\{forest\}"), "forest"),
+    (re.compile(r"\\begin\{circuitikz\}"), "circuitikz"),
+    (re.compile(r"\\chemfig\{"), "chemfig"),
+    (re.compile(r"\\ce\{"), "mhchem"),
+    (re.compile(r"\\begin\{tcolorbox\}"), "tcolorbox"),
+]
 
 
 # --- Document ---
@@ -192,6 +221,10 @@ class Document:
                 case Equation():
                     pkgs.add("amsmath")
                     pkgs.add("amssymb")
+                case RawLatex():
+                    for pattern, pkg in _RAW_PACKAGE_PATTERNS:
+                        if pattern.search(block.tex):
+                            pkgs.add(pkg)
 
         for block in self._walk_blocks(self.content):
             if isinstance(block, Paragraph) and "](http" in block.text:

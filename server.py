@@ -123,6 +123,9 @@ def edit(
     rows: list[list[str]] | None = None,
     target_section: str | None = None,
     target_position: int | None = None,
+    template: str | None = None,
+    lines: list[int] | None = None,
+    lint: bool = True,
 ) -> str:
     """Manipulate document content structurally.
 
@@ -131,6 +134,8 @@ def edit(
     - replace: Replace a block at a position with new content.
     - delete: Remove a block at a position.
     - move: Move a block from one location to another.
+    - read_raw: Read a RawLatex block with line numbers.
+    - replace_raw: Update a RawLatex block (full or line-level) with lint check.
 
     Sections are addressed by title path (e.g., 'Methods/Data Collection').
     Blocks within a section are addressed by 0-based index.
@@ -139,6 +144,7 @@ def edit(
     return _with_hints(edit_tool(
         action, block_type, section, position, content, title, level,
         language, path, caption, headers, rows, target_section, target_position,
+        template, lines, lint,
     ))
 
 
@@ -182,6 +188,7 @@ def reference(
     - check_style: Analyze a .tex file for best practices.
     - error_help: Get help for LaTeX error messages.
     - example: Get working examples for a topic (table, equation, figure, list, code).
+    - templates: Browse available LaTeX templates. Optionally filter by category or slug.
     """
     return _with_hints(reference_tool(action, query, description, name, error, topic, path))
 

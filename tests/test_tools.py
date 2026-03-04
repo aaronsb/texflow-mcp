@@ -307,6 +307,160 @@ class TestEditTool:
         result = edit_tool("insert", block_type="video", content="x")
         assert "Unknown block_type" in result
 
+    # --- Template-aware insert ---
+
+    def test_insert_raw_no_content_shows_templates(self):
+        document_tool("create")
+        result = edit_tool("insert", block_type="raw")
+        assert "template" in result.lower() or "Templates" in result
+
+    def test_insert_raw_with_template(self):
+        document_tool("create")
+        result = edit_tool("insert", block_type="raw", template="tikz-diagram")
+        assert "Inserted RawLatex" in result
+        doc = state.get_doc()
+        block = doc.content[0]
+        assert block.template == "tikz-diagram"
+        assert "tikzpicture" in block.tex
+
+    def test_insert_raw_with_template_and_content(self):
+        document_tool("create")
+        result = edit_tool("insert", block_type="raw", template="tikz-diagram",
+                           content="\\begin{tikzpicture}\\draw (0,0) circle (1);\\end{tikzpicture}")
+        assert "Inserted RawLatex" in result
+        doc = state.get_doc()
+        assert "circle" in doc.content[0].tex
+        assert doc.content[0].template == "tikz-diagram"
+
+    def test_insert_raw_nonexistent_template(self):
+        document_tool("create")
+        result = edit_tool("insert", block_type="raw", template="nonexistent-template")
+        assert "not found" in result
+
+    # --- read_raw ---
+
+    def test_read_raw(self):
+        document_tool("create")
+        edit_tool("insert", block_type="raw",
+                  content="\\begin{tikzpicture}\n\\draw (0,0) -- (1,1);\n\\end{tikzpicture}")
+        result = edit_tool("read_raw", position=0)
+        assert "RawLatex" in result
+        assert "3 lines" in result
+        assert "1 |" in result or "   1 |" in result
+        assert "tikzpicture" in result
+
+    def test_read_raw_shows_template(self):
+        document_tool("create")
+        edit_tool("insert", block_type="raw", template="tikz-diagram")
+        result = edit_tool("read_raw", position=0)
+        assert "template: tikz-diagram" in result
+
+    def test_read_raw_not_raw_block(self):
+        document_tool("create")
+        edit_tool("insert", content="Hello.")
+        result = edit_tool("read_raw", position=0)
+        assert "Error" in result
+        assert "Paragraph" in result
+
+    def test_read_raw_out_of_range(self):
+        document_tool("create")
+        result = edit_tool("read_raw", position=5)
+        assert "Error" in result
+
+    def test_read_raw_no_position(self):
+        document_tool("create")
+        result = edit_tool("read_raw")
+        assert "Error" in result
+
+    # --- replace_raw ---
+
+    def test_replace_raw_full(self):
+        document_tool("create")
+        edit_tool("insert", block_type="raw",
+                  content="\\begin{tikzpicture}\n\\end{tikzpicture}")
+        result = edit_tool("replace_raw", position=0,
+                           content="\\begin{tikzpicture}\n\\draw (0,0) -- (1,1);\n\\end{tikzpicture}")
+        assert "Replaced RawLatex" in result
+
+    def test_replace_raw_line_level(self):
+        document_tool("create")
+        edit_tool("insert", block_type="raw",
+                  content="\\begin{tikzpicture}\n\\draw (0,0) -- (1,1);\n\\end{tikzpicture}")
+        result = edit_tool("replace_raw", position=0,
+                           content="\\draw (0,0) circle (1);", lines=[2, 2])
+        assert "Updated lines" in result
+        doc = state.get_doc()
+        assert "circle" in doc.content[0].tex
+
+    def test_replace_raw_lint_failure(self):
+        document_tool("create")
+        edit_tool("insert", block_type="raw",
+                  content="\\begin{tikzpicture}\n\\end{tikzpicture}")
+        result = edit_tool("replace_raw", position=0,
+                           content="\\begin{tikzpicture}\noops no end")
+        assert "Lint" in result or "Unclosed" in result
+
+    def test_replace_raw_lint_override(self):
+        document_tool("create")
+        edit_tool("insert", block_type="raw",
+                  content="\\begin{tikzpicture}\n\\end{tikzpicture}")
+        result = edit_tool("replace_raw", position=0,
+                           content="\\begin{tikzpicture}\noops no end", lint=False)
+        assert "Replaced RawLatex" in result
+
+    def test_replace_raw_not_raw_block(self):
+        document_tool("create")
+        edit_tool("insert", content="Hello.")
+        result = edit_tool("replace_raw", position=0, content="new content")
+        assert "Error" in result
+
+    def test_replace_raw_invalid_lines(self):
+        document_tool("create")
+        edit_tool("insert", block_type="raw", content="line1\nline2\nline3")
+        result = edit_tool("replace_raw", position=0, content="new", lines=[3, 1])
+        assert "Error" in result
+
+
+# --- Raw LaTeX lint ---
+
+class TestRawLatexLint:
+    def test_lint_balanced(self):
+        from texflow.tools.edit import lint_raw
+        assert lint_raw("\\begin{tikzpicture}\\end{tikzpicture}") == []
+
+    def test_lint_unclosed_env(self):
+        from texflow.tools.edit import lint_raw
+        issues = lint_raw("\\begin{tikzpicture}\n\\draw (0,0);")
+        assert any("Unclosed" in i for i in issues)
+
+    def test_lint_extra_end(self):
+        from texflow.tools.edit import lint_raw
+        issues = lint_raw("\\end{tikzpicture}")
+        assert any("Extra" in i for i in issues)
+
+    def test_lint_unmatched_brace(self):
+        from texflow.tools.edit import lint_raw
+        issues = lint_raw("\\textbf{hello")
+        assert any("brace" in i.lower() for i in issues)
+
+    def test_lint_nested_envs(self):
+        from texflow.tools.edit import lint_raw
+        tex = "\\begin{figure}\\begin{tikzpicture}\\end{tikzpicture}\\end{figure}"
+        assert lint_raw(tex) == []
+
+    def test_lint_clean_template(self):
+        from texflow.tools.edit import lint_raw
+        tex = (
+            "\\begin{tikzpicture}[\n"
+            "  node distance=2cm\n"
+            "]\n"
+            "  \\node (a) {A};\n"
+            "  \\node (b) [right=of a] {B};\n"
+            "  \\draw[->] (a) -- (b);\n"
+            "\\end{tikzpicture}"
+        )
+        assert lint_raw(tex) == []
+
 
 # --- Render tool ---
 

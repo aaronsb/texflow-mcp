@@ -1,0 +1,24 @@
+---
+name: Multirow Table
+category: tables
+description: Table with merged cells using multirow
+packages:
+  - multirow
+  - booktabs
+preamble: []
+---
+\begin{table}[htbp]
+\centering
+\begin{tabular}{llc}
+\toprule
+\textbf{Category} & \textbf{Item} & \textbf{Value} \\
+\midrule
+\multirow{2}{*}{Group A} & Item 1 & 10 \\
+                          & Item 2 & 20 \\
+\midrule
+\multirow{2}{*}{Group B} & Item 3 & 30 \\
+                          & Item 4 & 40 \\
+\bottomrule
+\end{tabular}
+\caption{Replace with your caption}
+\end{table}
