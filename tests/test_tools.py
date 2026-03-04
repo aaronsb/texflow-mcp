@@ -113,6 +113,29 @@ class TestDocumentTool:
         data = json.loads(save_file.read_text())
         assert data["metadata"]["title"] == "Save Test"
 
+    def test_reset_clears_document(self, tmp_path):
+        document_tool("create", title="To Be Reset")
+        save_file = tmp_path / "document.texflow.json"
+        assert save_file.exists()
+        assert state.get_doc() is not None
+
+        result = document_tool("reset")
+        assert "cleared" in result.lower()
+        assert state.get_doc() is None
+        assert not save_file.exists()
+
+    def test_reset_no_document(self):
+        result = document_tool("reset")
+        assert "No document" in result
+
+    def test_reset_then_create(self, tmp_path):
+        document_tool("create", title="First")
+        document_tool("reset")
+        # Create should work without confirmation now
+        result = document_tool("create", title="Second")
+        assert "Created" in result
+        assert state.get_doc().metadata.title == "Second"
+
 
 # --- Layout tool ---
 

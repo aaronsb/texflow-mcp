@@ -151,6 +151,38 @@ class TestLayoutRoundtrip:
         assert restored.layout.styles == []
 
 
+class TestColorbandStyle:
+    """Test colorband-teal style with tikz overlays."""
+
+    def test_colorband_loaded(self):
+        s = get_style("colorband-teal")
+        assert s is not None
+        assert s.name == "Colorband Teal"
+
+    def test_colorband_has_tikz_overlay(self):
+        s = get_style("colorband-teal")
+        assert s is not None
+        assert any("ShipoutPictureBG" in line for line in s.preamble)
+        assert any("tikzpicture" in line for line in s.preamble)
+
+    def test_colorband_has_fancyhdr(self):
+        s = get_style("colorband-teal")
+        assert s is not None
+        assert any("pagestyle{fancy}" in line for line in s.preamble)
+        assert any("fancyfoot" in line for line in s.preamble)
+
+    def test_colorband_serializes(self):
+        doc = Document(
+            layout=Layout(styles=["colorband-teal"]),
+            content=[Paragraph(text="Hello consulting")],
+        )
+        tex = serialize(doc)
+        assert "\\usepackage{tikz}" in tex
+        assert "\\usepackage{eso-pic}" in tex
+        assert "ShipoutPictureBG" in tex
+        assert "headerBand" in tex
+
+
 class TestBackgroundStyles:
     """Test styles that use pagecolor for colored backgrounds."""
 

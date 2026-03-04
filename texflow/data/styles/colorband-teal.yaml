@@ -1,0 +1,38 @@
+---
+name: Colorband Teal
+description: Professional consulting style with teal header band and orange accent on title page, teal numbered headings with rules, styled footer
+packages:
+  - tikz
+  - eso-pic
+  - fancyhdr
+  - titlesec
+  - titling
+  - xcolor
+  - parskip
+preamble:
+  - \definecolor{headerBand}{HTML}{1A5C6B}
+  - \definecolor{accentLine}{HTML}{D4622B}
+  - \definecolor{footerBand}{HTML}{1E2A3A}
+  - \definecolor{heading}{HTML}{1A5C6B}
+  - \definecolor{subtle}{HTML}{666666}
+  - \definecolor{bodyText}{HTML}{333333}
+  - \color{bodyText}
+  - \AddToShipoutPictureBG*{\begin{tikzpicture}[remember picture,overlay]\fill[headerBand] (current page.north west) rectangle ([yshift=-3cm]current page.north east);\fill[accentLine] ([yshift=-3cm]current page.north west) rectangle ([yshift=-3.15cm]current page.north east);\fill[footerBand] (current page.south west) rectangle ([yshift=1.5cm]current page.south east);\end{tikzpicture}}
+  - \pretitle{\vspace{1.5cm}\begin{flushleft}\LARGE\bfseries\sffamily\color{heading}}
+  - \posttitle{\end{flushleft}}
+  - \preauthor{\begin{flushleft}\small\color{subtle}}
+  - \postauthor{\end{flushleft}}
+  - \predate{\begin{flushleft}\small\color{subtle}}
+  - \postdate{\end{flushleft}\vfill\thispagestyle{empty}\newpage}
+  - \titleformat{\section}{\Large\bfseries\sffamily\color{heading}}{\thesection}{0.75em}{}[\color{heading}\titlerule]
+  - \titleformat{\subsection}{\large\bfseries\sffamily\color{heading}}{\thesubsection}{0.75em}{}
+  - \titleformat{\subsubsection}{\normalsize\bfseries\sffamily\color{heading}}{\thesubsubsection}{0.75em}{}
+  - \pagestyle{fancy}
+  - \fancyhf{}
+  - \fancyfoot[L]{\small\color{subtle}\theauthor}
+  - \fancyfoot[R]{\small\color{subtle}\thepage}
+  - \renewcommand{\headrulewidth}{0pt}
+  - \renewcommand{\footrulewidth}{0.4pt}
+  - \fancypagestyle{plain}{\fancyhf{}\fancyfoot[L]{\small\color{subtle}\theauthor}\fancyfoot[R]{\small\color{subtle}\thepage}\renewcommand{\headrulewidth}{0pt}\renewcommand{\footrulewidth}{0.4pt}}
+  - \hypersetup{linkcolor=heading,urlcolor=accentLine,citecolor=heading}
+---

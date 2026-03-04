@@ -64,6 +64,7 @@ def document(
     - outline: Show document structure (sections, block counts).
     - read: Read content of a specific section as prose text.
     - update: Update document metadata (title, author, date, abstract).
+    - reset: Clear the current document and saved state. Next create/ingest starts fresh.
     """
     return _with_hints(document_tool(
         action, document_class, title, author, date, abstract, source, section,

@@ -95,6 +95,17 @@ def set_doc(doc: Document) -> None:
     _current_doc = doc
 
 
+def clear_doc() -> None:
+    """Clear the in-memory document and remove the saved state file."""
+    global _current_doc
+    if _current_doc is not None and _current_doc.save_path is not None:
+        try:
+            _current_doc.save_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+    _current_doc = None
+
+
 def require_doc() -> Document:
     doc = get_doc()
     if doc is None:
