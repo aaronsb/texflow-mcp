@@ -1,0 +1,28 @@
+---
+name: Bibliography with BibLaTeX
+category: references
+description: Citation workflow with biblatex and biber backend
+packages:
+  - biblatex
+preamble:
+  - \addbibresource{references.bib}
+requires_tools:
+  - biber
+---
+% Create a references.bib file with entries like:
+% @article{knuth1984,
+%   author  = {Knuth, Donald E.},
+%   title   = {Literate Programming},
+%   journal = {The Computer Journal},
+%   year    = {1984},
+%   volume  = {27},
+%   number  = {2},
+%   pages   = {97--111},
+% }
+
+% Cite in text:
+As shown by \textcite{knuth1984}, literate programming improves readability.
+This approach is well-established~\parencite{knuth1984}.
+
+% Print bibliography at end of document:
+\printbibliography

@@ -1,0 +1,27 @@
+---
+name: Colored Rows
+category: tables
+description: Table with alternating row colors using xcolor and colortbl
+packages:
+  - xcolor
+  - colortbl
+  - booktabs
+preamble: []
+---
+\begin{table}[htbp]
+\centering
+\caption{Alternating Row Colors}
+\rowcolors{2}{gray!15}{white}
+\begin{tabular}{l c r}
+  \toprule
+  \rowcolor{gray!30}
+  Name & Category & Score \\
+  \midrule
+  Alice   & A & 95 \\
+  Bob     & B & 87 \\
+  Charlie & A & 92 \\
+  Diana   & C & 78 \\
+  Eve     & B & 88 \\
+  \bottomrule
+\end{tabular}
+\end{table}

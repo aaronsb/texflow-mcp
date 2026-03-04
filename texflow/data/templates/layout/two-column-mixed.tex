@@ -1,0 +1,21 @@
+---
+name: Two-Column Mixed
+category: layout
+description: Inline column switching with multicol for mixed single/two-column layouts
+packages:
+  - multicol
+preamble: []
+---
+% Start two-column section
+\begin{multicols}{2}
+  First column content goes here. This text will flow naturally across two columns.
+
+  Second column content continues here. Use \columnbreak to force a column break if needed.
+
+  \columnbreak
+
+  This starts in the second column. Useful for side-by-side comparisons.
+\end{multicols}
+
+% Back to single column
+Full-width content here (e.g., a wide figure or table).

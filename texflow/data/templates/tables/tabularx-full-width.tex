@@ -1,0 +1,22 @@
+---
+name: Full-Width Table
+category: tables
+description: Auto-expanding X columns using tabularx for full page width
+packages:
+  - tabularx
+  - booktabs
+preamble: []
+---
+\begin{table}[htbp]
+\centering
+\caption{Full-Width Table}
+\begin{tabularx}{\textwidth}{l X X r}
+  \toprule
+  ID & Description & Notes & Value \\
+  \midrule
+  1  & First item description that may be long  & Additional notes here & 42 \\
+  2  & Second item with auto-wrapping text      & More notes            & 87 \\
+  3  & Third item fills remaining column width  & Final notes           & 13 \\
+  \bottomrule
+\end{tabularx}
+\end{table}

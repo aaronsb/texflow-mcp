@@ -103,3 +103,81 @@ class TestTemplateLoading:
         templates = [Template(name="T", slug="t", category="c", description="d", packages=["tikz"])]
         result = format_template_list(templates)
         assert "tikz" in result
+
+    def test_templates_expanded(self):
+        """ADR-202: template count grew from 8 to ~30."""
+        templates = get_templates()
+        assert len(templates) >= 28
+
+    def test_new_categories_exist(self):
+        cats = list_categories()
+        for cat in ["references", "callouts", "charts"]:
+            assert cat in cats, f"Missing category: {cat}"
+
+    def test_pgfplots_lineplot_loaded(self):
+        tmpl = get_template("pgfplots-lineplot")
+        assert tmpl is not None
+        assert tmpl.category == "diagrams"
+        assert "pgfplots" in tmpl.packages
+        assert "axis" in tmpl.body
+
+    def test_theorem_proof_loaded(self):
+        tmpl = get_template("theorem-proof")
+        assert tmpl is not None
+        assert "amsthm" in tmpl.packages
+        assert len(tmpl.preamble) >= 1
+        assert "newtheorem" in tmpl.preamble[0]
+
+    def test_biblatex_citations_loaded(self):
+        tmpl = get_template("biblatex-citations")
+        assert tmpl is not None
+        assert "biblatex" in tmpl.packages
+        assert "biber" in tmpl.requires_tools
+
+    def test_minted_requires_tools(self):
+        tmpl = get_template("minted-listing")
+        assert tmpl is not None
+        assert "pygmentize" in tmpl.requires_tools
+
+    def test_frontmatter_requires_tools_parsing(self):
+        text = "---\nname: T\nrequires_tools:\n  - biber\n  - pygmentize\n---\nbody"
+        meta, body = _parse_frontmatter(text)
+        assert meta["requires_tools"] == ["biber", "pygmentize"]
+
+    def test_frontmatter_requires_engine_parsing(self):
+        text = "---\nname: T\nrequires_engine: [xelatex]\n---\nbody"
+        meta, body = _parse_frontmatter(text)
+        assert meta["requires_engine"] == ["xelatex"]
+
+    def test_format_shows_requires_tools(self):
+        templates = [Template(name="T", slug="t", category="c", description="d",
+                              requires_tools=["pygmentize"])]
+        result = format_template_list(templates)
+        assert "requires tools: pygmentize" in result
+
+    def test_format_shows_requires_engine(self):
+        templates = [Template(name="T", slug="t", category="c", description="d",
+                              requires_engine=["xelatex"])]
+        result = format_template_list(templates)
+        assert "requires engine: xelatex" in result
+
+    def test_algorithm_pseudocode_loaded(self):
+        tmpl = get_template("algorithm-pseudocode")
+        assert tmpl is not None
+        assert "algorithm" in tmpl.packages
+        assert "algpseudocode" in tmpl.packages
+
+    def test_tcolorbox_note_loaded(self):
+        tmpl = get_template("tcolorbox-note")
+        assert tmpl is not None
+        assert "tcolorbox" in tmpl.packages
+
+    def test_gantt_chart_loaded(self):
+        tmpl = get_template("gantt-chart")
+        assert tmpl is not None
+        assert "pgfgantt" in tmpl.packages
+
+    def test_figure_local_image_loaded(self):
+        tmpl = get_template("figure-local-image")
+        assert tmpl is not None
+        assert "graphicx" in tmpl.packages

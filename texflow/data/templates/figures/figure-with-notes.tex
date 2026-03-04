@@ -1,0 +1,17 @@
+---
+name: Figure with Source Note
+category: figures
+description: Figure with caption and source attribution note below
+packages:
+  - graphicx
+preamble: []
+---
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.7\textwidth]{example-image}
+\caption{Descriptive caption for the figure.}
+\label{fig:noted}
+
+\vspace{2pt}
+{\small\textit{Source:} Author Name, ``Title of Source,'' Year.}
+\end{figure}

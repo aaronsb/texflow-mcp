@@ -1,0 +1,20 @@
+---
+name: Styled Code Listing
+category: code
+description: Syntax-highlighted code with listings — no external tools required
+packages:
+  - listings
+  - xcolor
+preamble:
+  - \lstdefinestyle{texflow}{basicstyle=\ttfamily\small, keywordstyle=\color{blue}\bfseries, commentstyle=\color{gray}\itshape, stringstyle=\color{orange}, numbers=left, numberstyle=\tiny\color{gray}, numbersep=8pt, frame=single, breaklines=true, showstringspaces=false, tabsize=2}
+---
+\begin{lstlisting}[style=texflow, language=Python, caption={Example Code}]
+def fibonacci(n):
+    """Return the nth Fibonacci number."""
+    if n <= 1:
+        return n
+    a, b = 0, 1
+    for _ in range(2, n + 1):
+        a, b = b, a + b
+    return b
+\end{lstlisting}

@@ -1,0 +1,22 @@
+---
+name: Callout Box
+category: callouts
+description: Colored info/warning/tip boxes using tcolorbox
+packages:
+  - tcolorbox
+preamble: []
+---
+% Info box (blue)
+\begin{tcolorbox}[colback=blue!5, colframe=blue!75!black, title=Note]
+  This is an informational note. Use it to highlight important details.
+\end{tcolorbox}
+
+% Warning box (red)
+\begin{tcolorbox}[colback=red!5, colframe=red!75!black, title=Warning]
+  This is a warning. Use it for cautionary information.
+\end{tcolorbox}
+
+% Tip box (green)
+\begin{tcolorbox}[colback=green!5, colframe=green!75!black, title=Tip]
+  This is a helpful tip. Use it for suggestions and best practices.
+\end{tcolorbox}

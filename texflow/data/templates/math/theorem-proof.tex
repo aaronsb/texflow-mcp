@@ -1,0 +1,23 @@
+---
+name: Theorem and Proof
+category: math
+description: Theorem/lemma/definition with proof using amsthm
+packages:
+  - amsthm
+  - amsmath
+preamble:
+  - \newtheorem{theorem}{Theorem}[section]
+  - \newtheorem{lemma}[theorem]{Lemma}
+  - \newtheorem{definition}[theorem]{Definition}
+---
+\begin{theorem}[Optional Name]
+  % State your theorem here
+  For all $n \geq 1$, the inequality holds.
+\end{theorem}
+
+\begin{proof}
+  % Write your proof here
+  By induction on $n$. The base case $n = 1$ is trivial.
+  For the inductive step, assume the result holds for $n = k$.
+  Then for $n = k + 1$, we have\ldots
+\end{proof}

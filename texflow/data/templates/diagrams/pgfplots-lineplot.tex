@@ -1,0 +1,30 @@
+---
+name: Line Plot
+category: diagrams
+description: Scientific line plot with axis, legend, and grid using pgfplots
+packages:
+  - pgfplots
+preamble:
+  - \pgfplotsset{compat=1.18}
+---
+\begin{tikzpicture}
+\begin{axis}[
+  title={Sample Line Plot},
+  xlabel={$x$},
+  ylabel={$f(x)$},
+  grid=major,
+  legend pos=north west,
+  width=0.8\textwidth,
+  height=6cm,
+]
+  \addplot[blue, thick, mark=*] coordinates {
+    (0, 0) (1, 1) (2, 4) (3, 9) (4, 16)
+  };
+  \addlegendentry{$x^2$}
+
+  \addplot[red, thick, dashed, mark=square*] coordinates {
+    (0, 0) (1, 2) (2, 4) (3, 6) (4, 8)
+  };
+  \addlegendentry{$2x$}
+\end{axis}
+\end{tikzpicture}

@@ -1,0 +1,23 @@
+---
+name: SI Units and Quantities
+category: math
+description: SI units with siunitx — qty, num, SI, and S column
+packages:
+  - siunitx
+preamble:
+  - \sisetup{per-mode=symbol}
+---
+% Inline quantities
+The speed of light is $c = \qty{3e8}{\metre\per\second}$.
+The sample mass was \qty{250}{\milli\gram}.
+
+% Tabular with S column for decimal alignment
+\begin{tabular}{l S[table-format=3.2]}
+  \toprule
+  Material & {Density (\unit{\kilogram\per\metre\cubed})} \\
+  \midrule
+  Water    & 1000.00 \\
+  Iron     & 7874.00 \\
+  Air      & 1.23 \\
+  \bottomrule
+\end{tabular}

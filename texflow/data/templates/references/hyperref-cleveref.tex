@@ -1,0 +1,24 @@
+---
+name: Smart Cross-References
+category: references
+description: Automatic reference formatting with cleveref — load order matters
+packages:
+  - cleveref
+  - hyperref
+preamble: []
+---
+% IMPORTANT: cleveref must be loaded AFTER hyperref.
+% TeXFlow handles this automatically via package ordering.
+
+% Label your floats and sections:
+% \label{sec:intro}  \label{fig:diagram}  \label{eq:euler}  \label{tab:results}
+
+% Use \cref for automatic formatting:
+See \cref{fig:diagram} and \cref{tab:results}.
+As discussed in \cref{sec:intro}, the result follows from \cref{eq:euler}.
+
+% \Cref at start of sentence (capitalized):
+\Cref{fig:diagram} shows the architecture.
+
+% Multiple refs:
+See \cref{fig:diagram,fig:other,fig:third} for details.

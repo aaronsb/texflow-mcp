@@ -1,0 +1,29 @@
+---
+name: Scatter Plot
+category: diagrams
+description: Scatter plot with data points using pgfplots
+packages:
+  - pgfplots
+preamble:
+  - \pgfplotsset{compat=1.18}
+---
+\begin{tikzpicture}
+\begin{axis}[
+  title={Scatter Plot},
+  xlabel={$x$},
+  ylabel={$y$},
+  grid=major,
+  only marks,
+  mark size=2pt,
+  width=0.8\textwidth,
+  height=6cm,
+]
+  \addplot[blue, mark=*] coordinates {
+    (1, 2.1) (2, 3.8) (3, 5.2) (4, 7.1) (5, 8.9)
+    (1.5, 2.9) (2.5, 4.5) (3.5, 6.0) (4.5, 7.8)
+  };
+
+  % Optional: add trend line
+  \addplot[red, thick, no marks, domain=0.5:5.5] {1.8*x + 0.2};
+\end{axis}
+\end{tikzpicture}

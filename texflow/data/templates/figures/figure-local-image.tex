@@ -1,0 +1,15 @@
+---
+name: Local Image
+category: figures
+description: Simple figure from a local image file with includegraphics
+packages:
+  - graphicx
+preamble: []
+---
+\begin{figure}[htbp]
+\centering
+% Replace path with your image file (PDF, PNG, JPG supported)
+\includegraphics[width=0.8\textwidth]{path/to/image.png}
+\caption{Replace with your caption.}
+\label{fig:local}
+\end{figure}

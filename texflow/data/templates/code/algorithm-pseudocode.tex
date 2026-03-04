@@ -1,0 +1,28 @@
+---
+name: Algorithm Pseudocode
+category: code
+description: Pseudocode with algorithm and algpseudocode for CS papers
+packages:
+  - algorithm
+  - algpseudocode
+preamble: []
+---
+\begin{algorithm}[htbp]
+\caption{Binary Search}\label{alg:binsearch}
+\begin{algorithmic}[1]
+  \Require sorted array $A[1..n]$, target value $t$
+  \Ensure index $i$ such that $A[i] = t$, or $-1$
+  \State $\ell \gets 1$, $r \gets n$
+  \While{$\ell \leq r$}
+    \State $m \gets \lfloor (\ell + r) / 2 \rfloor$
+    \If{$A[m] = t$}
+      \State \Return $m$
+    \ElsIf{$A[m] < t$}
+      \State $\ell \gets m + 1$
+    \Else
+      \State $r \gets m - 1$
+    \EndIf
+  \EndWhile
+  \State \Return $-1$
+\end{algorithmic}
+\end{algorithm}

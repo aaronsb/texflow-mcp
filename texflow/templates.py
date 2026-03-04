@@ -21,6 +21,8 @@ class Template:
     packages: list[str] = field(default_factory=list)
     preamble: list[str] = field(default_factory=list)
     body: str = ""
+    requires_tools: list[str] = field(default_factory=list)
+    requires_engine: list[str] = field(default_factory=list)
 
 
 def _parse_frontmatter(text: str) -> tuple[dict, str]:
@@ -94,6 +96,12 @@ def _load_templates() -> dict[str, Template]:
         preamble = meta.get("preamble", [])
         if isinstance(preamble, str):
             preamble = [preamble]
+        requires_tools = meta.get("requires_tools", [])
+        if isinstance(requires_tools, str):
+            requires_tools = [requires_tools]
+        requires_engine = meta.get("requires_engine", [])
+        if isinstance(requires_engine, str):
+            requires_engine = [requires_engine]
 
         result[slug] = Template(
             name=meta.get("name", slug),
@@ -103,6 +111,8 @@ def _load_templates() -> dict[str, Template]:
             packages=packages,
             preamble=preamble,
             body=body.strip(),
+            requires_tools=requires_tools,
+            requires_engine=requires_engine,
         )
 
     return result
@@ -150,5 +160,9 @@ def format_template_list(templates: list[Template]) -> str:
             lines.append(f"    {t.slug}: {t.name} — {t.description}")
             if t.packages:
                 lines.append(f"      packages: {', '.join(t.packages)}")
+            if t.requires_tools:
+                lines.append(f"      requires tools: {', '.join(t.requires_tools)}")
+            if t.requires_engine:
+                lines.append(f"      requires engine: {', '.join(t.requires_engine)}")
 
     return "\n".join(lines)

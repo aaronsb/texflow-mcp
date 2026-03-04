@@ -1,0 +1,19 @@
+---
+name: Side-by-Side Blocks
+category: layout
+description: Horizontal content blocks with minipage — note the percent sign to avoid gaps
+packages: []
+preamble: []
+---
+% IMPORTANT: The % after \end{minipage} prevents unwanted whitespace
+\begin{minipage}[t]{0.48\textwidth}
+  \textbf{Left Block}
+
+  Content for the left side. This can include text, equations, lists, or any LaTeX content.
+\end{minipage}%
+\hfill%
+\begin{minipage}[t]{0.48\textwidth}
+  \textbf{Right Block}
+
+  Content for the right side. The [t] option aligns both blocks at the top.
+\end{minipage}

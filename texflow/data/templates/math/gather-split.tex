@@ -1,0 +1,23 @@
+---
+name: Gather and Split
+category: math
+description: Centered equations with gather and multi-line with split
+packages:
+  - amsmath
+preamble: []
+---
+% gather: centered equations, each on its own line
+\begin{gather}
+  a + b = c \\
+  x^2 + y^2 = z^2 \\
+  e^{i\pi} + 1 = 0
+\end{gather}
+
+% split inside equation: one equation number for a multi-line derivation
+\begin{equation}
+\begin{split}
+  (a + b)^2 &= (a + b)(a + b) \\
+             &= a^2 + ab + ba + b^2 \\
+             &= a^2 + 2ab + b^2
+\end{split}
+\end{equation}

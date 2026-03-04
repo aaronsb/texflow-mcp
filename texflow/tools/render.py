@@ -43,12 +43,29 @@ def _compile(output_path: str | None) -> str:
     doc = require_doc()
     tex = serialize(doc)
 
+    # Pre-compile capability check
+    warnings = _check_packages(doc)
+
     out_dir = Path(output_path) if output_path else get_output_dir()
     result = compile_tex(tex, output_dir=out_dir)
     _last_result = result
 
     auto_save()
-    return format_compile_result(result)
+    output = format_compile_result(result)
+    if warnings:
+        output += "\n\nPackage warnings:\n" + "\n".join(f"  - {w}" for w in warnings)
+    return output
+
+
+def _check_packages(doc) -> list[str]:
+    """Check if required packages are available on the system."""
+    try:
+        from ..capabilities import check_capabilities, format_missing_warnings
+        needed = sorted(doc.required_packages)
+        caps = check_capabilities(packages=needed)
+        return format_missing_warnings(caps, needed_packages=needed)
+    except Exception:
+        return []
 
 
 def _preview(page: int, dpi: int) -> str:

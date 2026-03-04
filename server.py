@@ -189,6 +189,7 @@ def reference(
     - error_help: Get help for LaTeX error messages.
     - example: Get working examples for a topic (table, equation, figure, list, code).
     - templates: Browse available LaTeX templates. Optionally filter by category or slug.
+    - capabilities: Enumerate system LaTeX support (engines, tools, packages).
     """
     return _with_hints(reference_tool(action, query, description, name, error, topic, path))
 

@@ -1,0 +1,33 @@
+---
+name: Gantt Chart
+category: charts
+description: Project timeline with pgfgantt for scheduling and milestones
+packages:
+  - pgfgantt
+preamble: []
+---
+\begin{ganttchart}[
+  hgrid,
+  vgrid,
+  x unit=0.7cm,
+  title height=1,
+  bar/.style={fill=blue!50},
+  bar incomplete/.style={fill=blue!20},
+  milestone/.style={fill=red!70, shape=diamond},
+]{1}{12}
+  \gantttitle{Project Timeline}{12} \\
+  \gantttitlelist{1,...,12}{1} \\
+
+  \ganttbar{Research}{1}{3} \\
+  \ganttbar{Design}{3}{5} \\
+  \ganttbar{Implementation}{5}{9} \\
+  \ganttmilestone{Alpha Release}{9} \\
+  \ganttbar{Testing}{9}{11} \\
+  \ganttmilestone{Final Release}{12}
+
+  \ganttlink{elem0}{elem1}
+  \ganttlink{elem1}{elem2}
+  \ganttlink{elem2}{elem3}
+  \ganttlink{elem3}{elem4}
+  \ganttlink{elem4}{elem5}
+\end{ganttchart}

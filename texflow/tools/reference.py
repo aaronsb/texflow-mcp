@@ -87,6 +87,7 @@ def reference_tool(
     - error_help: Get help for LaTeX error messages.
     - example: Get working examples for a topic.
     - templates: Browse available LaTeX templates. Optionally filter by category or slug.
+    - capabilities: Enumerate system LaTeX support (engines, tools, packages).
     """
     match action:
         case "search":
@@ -103,8 +104,10 @@ def reference_tool(
             return _get_example(topic)
         case "templates":
             return _list_templates(query)
+        case "capabilities":
+            return _show_capabilities()
         case _:
-            return f"Unknown action: {action}. Valid: search, symbol, package, check_style, error_help, example, templates"
+            return f"Unknown action: {action}. Valid: search, symbol, package, check_style, error_help, example, templates, capabilities"
 
 
 def _search(query: str | None) -> str:
@@ -403,6 +406,10 @@ def _list_templates(query: str | None) -> str:
             lines.append(f"  Packages: {', '.join(tmpl.packages)}")
         if tmpl.preamble:
             lines.append(f"  Preamble: {len(tmpl.preamble)} line(s)")
+        if tmpl.requires_tools:
+            lines.append(f"  Requires tools: {', '.join(tmpl.requires_tools)}")
+        if tmpl.requires_engine:
+            lines.append(f"  Requires engine: {', '.join(tmpl.requires_engine)}")
         lines.append(f"\n{tmpl.body}")
         return "\n".join(lines)
 
@@ -417,6 +424,12 @@ def _list_templates(query: str | None) -> str:
         ]
 
     return format_template_list(matches)
+
+
+def _show_capabilities() -> str:
+    from ..capabilities import check_capabilities, format_capabilities
+    caps = check_capabilities()
+    return format_capabilities(caps)
 
 
 def _get_example(topic: str | None) -> str:

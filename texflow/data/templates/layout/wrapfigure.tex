@@ -1,0 +1,21 @@
+---
+name: Wrapped Figure
+category: layout
+description: Text-wrapped figure using wrapfig package
+packages:
+  - wrapfig
+  - graphicx
+preamble: []
+---
+\begin{wrapfigure}{r}{0.4\textwidth}
+  \centering
+  \includegraphics[width=0.38\textwidth]{example-image}
+  \caption{A wrapped figure.}
+  \label{fig:wrapped}
+\end{wrapfigure}
+
+% Body text flows around the figure. Write enough text to fill
+% the space beside the figure. The {r} places the figure on the
+% right; use {l} for left. The width (0.4\textwidth) controls
+% how much horizontal space the figure occupies.
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.

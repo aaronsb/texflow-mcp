@@ -1,0 +1,21 @@
+---
+name: Pie Chart
+category: charts
+description: Pie chart visualization using pgf-pie
+packages:
+  - pgf-pie
+preamble: []
+---
+\begin{tikzpicture}
+\pie[
+  text=legend,
+  radius=3,
+  color={blue!60, red!60, green!60, orange!60, gray!40}
+]{
+  35/Category A,
+  25/Category B,
+  20/Category C,
+  15/Category D,
+  5/Other
+}
+\end{tikzpicture}

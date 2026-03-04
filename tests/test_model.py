@@ -229,8 +229,8 @@ def test_required_packages_raw_multirow():
     assert "multirow" in doc.required_packages
 
 
-def test_required_packages_raw_algorithm():
-    doc = Document(content=[RawLatex(tex="\\begin{algorithm}\n\\caption{Sort}\n\\end{algorithm}")])
+def test_required_packages_raw_algorithm2e():
+    doc = Document(content=[RawLatex(tex="\\SetKwInOut{Input}{Input}\n\\KwResult{sorted list}")])
     assert "algorithm2e" in doc.required_packages
 
 
@@ -282,3 +282,61 @@ def test_required_packages_raw_nested_in_section():
         ])
     ])
     assert "tikz" in doc.required_packages
+
+
+# --- Workstream 4: Expanded package detection patterns ---
+
+
+def test_required_packages_raw_pgfplots():
+    doc = Document(content=[RawLatex(tex="\\begin{axis}[xlabel={x}]\n\\addplot {x^2};\n\\end{axis}")])
+    assert "pgfplots" in doc.required_packages
+
+
+def test_required_packages_raw_pgfgantt():
+    doc = Document(content=[RawLatex(tex="\\begin{ganttchart}{1}{12}\n\\ganttbar{Task}{1}{3}\n\\end{ganttchart}")])
+    assert "pgfgantt" in doc.required_packages
+
+
+def test_required_packages_raw_algpseudocode():
+    doc = Document(content=[RawLatex(tex="\\begin{algorithmic}[1]\n\\State $x \\gets 0$\n\\end{algorithmic}")])
+    assert "algpseudocode" in doc.required_packages
+
+
+def test_required_packages_raw_wrapfig():
+    doc = Document(content=[RawLatex(tex="\\begin{wrapfigure}{r}{0.5\\textwidth}\n\\end{wrapfigure}")])
+    assert "wrapfig" in doc.required_packages
+
+
+def test_required_packages_raw_tabularx():
+    doc = Document(content=[RawLatex(tex="\\begin{tabularx}{\\textwidth}{l X X}\nA & B & C\n\\end{tabularx}")])
+    assert "tabularx" in doc.required_packages
+
+
+def test_required_packages_raw_biblatex():
+    doc = Document(content=[RawLatex(tex="Some text.\n\\printbibliography")])
+    assert "biblatex" in doc.required_packages
+
+
+def test_required_packages_raw_cleveref():
+    doc = Document(content=[RawLatex(tex="See \\cref{fig:one} and \\Cref{sec:intro}.")])
+    assert "cleveref" in doc.required_packages
+
+
+def test_required_packages_raw_siunitx():
+    doc = Document(content=[RawLatex(tex="The mass is \\qty{5}{\\kilogram}.")])
+    assert "siunitx" in doc.required_packages
+
+
+def test_required_packages_raw_siunitx_si_command():
+    doc = Document(content=[RawLatex(tex="Speed: \\SI{3e8}{\\metre\\per\\second}.")])
+    assert "siunitx" in doc.required_packages
+
+
+def test_required_packages_raw_cases():
+    doc = Document(content=[RawLatex(tex="\\begin{cases}\nx & \\text{if } x \\geq 0\n\\end{cases}")])
+    assert "amsmath" in doc.required_packages
+
+
+def test_required_packages_raw_newtcbtheorem():
+    doc = Document(content=[RawLatex(tex="\\newtcbtheorem{mythm}{Theorem}{}{thm}")])
+    assert "tcolorbox" in doc.required_packages

@@ -167,7 +167,7 @@ _RAW_PACKAGE_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\\begin\{tikzcd\}"), "tikz-cd"),
     (re.compile(r"\\includegraphics"), "graphicx"),
     (re.compile(r"\\multirow\b"), "multirow"),
-    (re.compile(r"\\begin\{algorithm\}"), "algorithm2e"),
+    (re.compile(r"\\SetKwInOut|\\KwResult|\\SetAlgoLined"), "algorithm2e"),
     (re.compile(r"\\begin\{landscape\}"), "pdflscape"),
     (re.compile(r"\\begin\{longtable\}"), "longtable"),
     (re.compile(r"\\begin\{minted\}"), "minted"),
@@ -184,7 +184,29 @@ _RAW_PACKAGE_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\\chemfig\{"), "chemfig"),
     (re.compile(r"\\ce\{"), "mhchem"),
     (re.compile(r"\\begin\{tcolorbox\}"), "tcolorbox"),
+    (re.compile(r"\\begin\{axis\}"), "pgfplots"),
+    (re.compile(r"\\begin\{ganttchart\}"), "pgfgantt"),
+    (re.compile(r"\\begin\{algorithmic\}"), "algpseudocode"),
+    (re.compile(r"\\begin\{wrapfigure\}"), "wrapfig"),
+    (re.compile(r"\\begin\{tabularx\}"), "tabularx"),
+    (re.compile(r"\\printbibliography"), "biblatex"),
+    (re.compile(r"\\cref\{|\\Cref\{"), "cleveref"),
+    (re.compile(r"\\qty\{|\\SI\{"), "siunitx"),
+    (re.compile(r"\\begin\{cases\}"), "amsmath"),
+    (re.compile(r"\\newtcbtheorem"), "tcolorbox"),
+    (re.compile(r"\\pie\b|\\pie\["), "pgf-pie"),
+    (re.compile(r"\\begin\{proof\}|\\newtheorem\b"), "amsthm"),
 ]
+
+
+def _template_packages(slug: str) -> list[str]:
+    """Look up packages declared by a template (lazy import to avoid cycles)."""
+    try:
+        from .templates import get_template
+        tmpl = get_template(slug)
+        return tmpl.packages if tmpl else []
+    except Exception:
+        return []
 
 
 # --- Document ---
@@ -226,6 +248,8 @@ class Document:
                     for pattern, pkg in _RAW_PACKAGE_PATTERNS:
                         if pattern.search(block.tex):
                             pkgs.add(pkg)
+                    if block.template:
+                        pkgs.update(_template_packages(block.template))
 
         for block in self._walk_blocks(self.content):
             if isinstance(block, Paragraph) and "](http" in block.text:

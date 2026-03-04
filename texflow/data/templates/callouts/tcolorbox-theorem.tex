@@ -1,0 +1,20 @@
+---
+name: Boxed Theorem
+category: callouts
+description: Theorem environments in colored boxes using tcolorbox
+packages:
+  - tcolorbox
+  - amsmath
+preamble:
+  - \tcbuselibrary{theorems}
+  - \newtcbtheorem[number within=section]{mytheorem}{Theorem}{colback=blue!5, colframe=blue!75!black, fonttitle=\bfseries}{thm}
+  - \newtcbtheorem[number within=section]{mydef}{Definition}{colback=green!5, colframe=green!75!black, fonttitle=\bfseries}{def}
+---
+\begin{mytheorem}{Pythagorean Theorem}{pythagoras}
+  For a right triangle with legs $a$, $b$ and hypotenuse $c$:
+  \[ a^2 + b^2 = c^2 \]
+\end{mytheorem}
+
+\begin{mydef}{Prime Number}{prime}
+  A natural number $p > 1$ is \emph{prime} if its only positive divisors are $1$ and $p$.
+\end{mydef}
