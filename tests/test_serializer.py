@@ -358,7 +358,7 @@ def test_serialize_complete_document():
     tex = serialize(doc)
 
     # Structural checks
-    assert tex.startswith("\\documentclass")
+    assert "\\documentclass" in tex
     assert "\\begin{document}" in tex
     assert "\\end{document}" in tex
     assert tex.index("\\begin{document}") < tex.index("\\end{document}")

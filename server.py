@@ -51,6 +51,8 @@ def document(
     document_class: str | None = None,
     title: str | None = None,
     author: str | None = None,
+    date: str | None = None,
+    abstract: str | None = None,
     source: str | None = None,
     section: str | None = None,
 ) -> str:
@@ -61,8 +63,11 @@ def document(
     - ingest: Parse markdown text or file path into the document model.
     - outline: Show document structure (sections, block counts).
     - read: Read content of a specific section as prose text.
+    - update: Update document metadata (title, author, date, abstract).
     """
-    return _with_hints(document_tool(action, document_class, title, author, source, section))
+    return _with_hints(document_tool(
+        action, document_class, title, author, date, abstract, source, section,
+    ))
 
 
 # --- Layout tool ---
@@ -150,7 +155,7 @@ def render(
 
     Actions:
     - compile: Serialize model to .tex, compile to PDF. Returns PDF path.
-    - preview: Render a specific page as base64 PNG image.
+    - preview: Render a specific page as PNG file. Returns file path and dimensions.
     - tex: Export the raw .tex source. Returns the LaTeX content.
     """
     return _with_hints(render_tool(action, output_path, page, dpi))

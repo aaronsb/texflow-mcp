@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..compiler import compile_tex, preview_page
-from ..formatters import format_compile_result
+from ..formatters import format_compile_result, format_preview_result
 from ..serializer import serialize
 from .state import auto_save, get_output_dir, require_doc
 
@@ -20,7 +20,7 @@ def render_tool(
 
     Actions:
     - compile: Serialize model to .tex, compile to PDF. Returns PDF path.
-    - preview: Render a specific page as base64 PNG image.
+    - preview: Render a specific page as PNG file. Returns file path and dimensions.
     - tex: Export the raw .tex source. Returns the LaTeX content.
     - errors: Return structured compilation errors from last compile.
     """
@@ -52,21 +52,25 @@ def _compile(output_path: str | None) -> str:
 
 
 def _preview(page: int, dpi: int) -> str:
+    pdf_path = None
     if _last_result and _last_result.pdf_path and _last_result.pdf_path.exists():
-        b64 = preview_page(_last_result.pdf_path, page=page, dpi=dpi)
-        if b64:
-            return f"data:image/png;base64,{b64}"
+        pdf_path = _last_result.pdf_path
+    else:
+        # Try compiling first
+        doc = require_doc()
+        tex = serialize(doc)
+        result = compile_tex(tex, output_dir=get_output_dir())
+        if result.success and result.pdf_path:
+            pdf_path = result.pdf_path
+
+    if pdf_path is None:
+        return "Preview unavailable. Compile the document first with render(action='compile')."
+
+    preview = preview_page(pdf_path, page=page, dpi=dpi, output_dir=get_output_dir())
+    if preview is None:
         return "Preview failed. Ensure pdftoppm (poppler-utils) is installed."
 
-    # Try compiling first
-    doc = require_doc()
-    tex = serialize(doc)
-    result = compile_tex(tex, output_dir=get_output_dir())
-    if result.success and result.pdf_path:
-        b64 = preview_page(result.pdf_path, page=page, dpi=dpi)
-        if b64:
-            return f"data:image/png;base64,{b64}"
-    return "Preview unavailable. Compile the document first with render(action='compile')."
+    return format_preview_result(preview)
 
 
 def _export_tex() -> str:

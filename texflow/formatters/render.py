@@ -1,8 +1,13 @@
-"""Formatters for the render tool: compilation results."""
+"""Formatters for the render tool: compilation results and previews."""
 
 from __future__ import annotations
 
 from .primitives import truncate_list
+
+_TEX_DERIVED_NOTE = (
+    "Note: The .tex file is regenerated from the document model on every compile. "
+    "Edits to .tex will be overwritten. Use edit() and layout() to make changes."
+)
 
 
 def format_compile_result(result) -> str:
@@ -32,4 +37,21 @@ def format_compile_result(result) -> str:
         lines.append(f"Warnings ({len(result.warnings)}):")
         lines.extend(truncated)
 
+    lines.append("")
+    lines.append(_TEX_DERIVED_NOTE)
+
+    return "\n".join(lines)
+
+
+def format_preview_result(preview) -> str:
+    """Format preview result with file path and dimensions."""
+    size_kb = preview.file_size / 1024
+    lines = [
+        f"Preview saved: page {preview.page}",
+        f"  PNG: {preview.png_path}",
+        f"  Dimensions: {preview.width} x {preview.height} px",
+        f"  Size: {size_kb:.1f} KB",
+        "",
+        "The preview image is saved to disk. Share the file path with the user.",
+    ]
     return "\n".join(lines)

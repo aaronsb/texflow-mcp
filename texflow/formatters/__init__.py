@@ -19,7 +19,7 @@ from .document import (
 )
 from .layout import format_layout
 from .primitives import indent, status_icon, truncate, truncate_list
-from .render import format_compile_result
+from .render import format_compile_result, format_preview_result
 
 __all__ = [
     # primitives
@@ -39,4 +39,5 @@ __all__ = [
     "format_layout",
     # render
     "format_compile_result",
+    "format_preview_result",
 ]

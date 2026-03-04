@@ -78,9 +78,12 @@ def test_preview_page():
     with tempfile.TemporaryDirectory() as tmpdir:
         result = compile_tex(tex, output_dir=Path(tmpdir))
         if result.success and result.pdf_path:
-            b64 = preview_page(result.pdf_path, page=1, dpi=72)
-            assert b64 is not None
-            assert len(b64) > 100  # Should be a non-trivial PNG
+            preview = preview_page(result.pdf_path, page=1, dpi=72, output_dir=Path(tmpdir))
+            assert preview is not None
+            assert preview.png_path.exists()
+            assert preview.file_size > 100
+            assert preview.width > 0
+            assert preview.height > 0
 
 
 def test_preview_nonexistent_file():

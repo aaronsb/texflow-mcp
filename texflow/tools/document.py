@@ -1,4 +1,4 @@
-"""Document tool: create, ingest, outline, read."""
+"""Document tool: create, ingest, outline, read, update."""
 
 from __future__ import annotations
 
@@ -42,6 +42,8 @@ def document_tool(
     document_class: str | None = None,
     title: str | None = None,
     author: str | None = None,
+    date: str | None = None,
+    abstract: str | None = None,
     source: str | None = None,
     section: str | None = None,
 ) -> str:
@@ -52,21 +54,30 @@ def document_tool(
     - ingest: Parse markdown text or file path into the document model.
     - outline: Show document structure (sections, block counts).
     - read: Read content of a specific section as prose text.
+    - update: Update document metadata (title, author, date, abstract).
     """
     match action:
         case "create":
-            return _create(document_class, title, author)
+            return _create(document_class, title, author, date, abstract)
         case "ingest":
             return _ingest(source, section)
         case "outline":
             return _outline()
         case "read":
             return _read(section)
+        case "update":
+            return _update(title, author, date, abstract)
         case _:
-            return f"Unknown action: {action}. Valid actions: create, ingest, outline, read"
+            return f"Unknown action: {action}. Valid actions: create, ingest, outline, read, update"
 
 
-def _create(doc_class: str | None, title: str | None, author: str | None) -> str:
+def _create(
+    doc_class: str | None,
+    title: str | None,
+    author: str | None,
+    date: str | None,
+    abstract: str | None,
+) -> str:
     cls = DocumentClass.ARTICLE
     if doc_class:
         try:
@@ -96,6 +107,8 @@ def _create(doc_class: str | None, title: str | None, author: str | None) -> str
         metadata=Metadata(
             title=title or "",
             author=author or "",
+            date=date or "\\today",
+            abstract=abstract or "",
         ),
         layout=Layout(document_class=cls),
         save_path=get_output_dir() / "document.texflow.json",
@@ -112,6 +125,38 @@ def _create(doc_class: str | None, title: str | None, author: str | None) -> str
     parts.append("The document is empty. Use edit(action='insert') to add content,")
     parts.append("or layout() to configure typesetting.")
     return "\n".join(parts)
+
+
+def _update(
+    title: str | None,
+    author: str | None,
+    date: str | None,
+    abstract: str | None,
+) -> str:
+    try:
+        doc = require_doc()
+    except ValueError as e:
+        return str(e)
+    changes: list[str] = []
+
+    if title is not None:
+        doc.metadata.title = title
+        changes.append(f"title={title!r}")
+    if author is not None:
+        doc.metadata.author = author
+        changes.append(f"author={author!r}")
+    if date is not None:
+        doc.metadata.date = date
+        changes.append(f"date={date!r}")
+    if abstract is not None:
+        doc.metadata.abstract = abstract
+        changes.append(f"abstract set ({len(abstract)} chars)")
+
+    if not changes:
+        return "No changes (no parameters provided)."
+
+    auto_save()
+    return f"Updated metadata: {', '.join(changes)}"
 
 
 def _ingest(source: str | None, section: str | None = None) -> str:
@@ -135,12 +180,17 @@ def _ingest(source: str | None, section: str | None = None) -> str:
                 tool_hint="document(action='ingest')",
             )
 
+    # Preserve existing layout through whole-document replacement
+    existing_layout = existing.layout if existing is not None else None
+
     # Check if source is a file path
     if _looks_like_path(source):
         source_path = Path(source)
         if source_path.exists() and source_path.is_file():
             text = source_path.read_text(encoding="utf-8")
             doc = ingest_markdown(text)
+            if existing_layout is not None:
+                doc.layout = existing_layout
             doc.save_path = get_output_dir() / "document.texflow.json"
             set_doc(doc)
             auto_save()
@@ -151,6 +201,8 @@ def _ingest(source: str | None, section: str | None = None) -> str:
         doc = ingest_markdown(source)
     else:
         doc = ingest_raw(source)
+    if existing_layout is not None:
+        doc.layout = existing_layout
     doc.save_path = get_output_dir() / "document.texflow.json"
     set_doc(doc)
     auto_save()

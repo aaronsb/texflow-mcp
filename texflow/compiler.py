@@ -7,7 +7,6 @@ All external tools are optional with graceful degradation.
 
 from __future__ import annotations
 
-import base64
 import re
 import shutil
 import subprocess
@@ -113,10 +112,25 @@ def compile_tex(tex_content: str, output_dir: Path | None = None, filename: str 
         )
 
 
-def preview_page(pdf_path: Path, page: int = 1, dpi: int = 150) -> str | None:
-    """Render a PDF page to a base64-encoded PNG string.
+@dataclass
+class PreviewResult:
+    png_path: Path
+    page: int
+    width: int
+    height: int
+    file_size: int  # bytes
 
-    Requires pdftoppm from poppler-utils. Returns None if not available.
+
+def preview_page(
+    pdf_path: Path,
+    page: int = 1,
+    dpi: int = 150,
+    output_dir: Path | None = None,
+) -> PreviewResult | None:
+    """Render a PDF page to a PNG file saved alongside the PDF.
+
+    Requires pdftoppm from poppler-utils. Returns PreviewResult with
+    file path and dimensions, or None if unavailable.
     """
     if not shutil.which("pdftoppm"):
         return None
@@ -124,31 +138,53 @@ def preview_page(pdf_path: Path, page: int = 1, dpi: int = 150) -> str | None:
     if not pdf_path.exists():
         return None
 
-    with tempfile.TemporaryDirectory(prefix="texflow_preview_") as tmp:
-        out_prefix = Path(tmp) / "page"
-        try:
-            subprocess.run(
-                [
-                    "pdftoppm",
-                    "-png",
-                    "-r", str(dpi),
-                    "-f", str(page),
-                    "-l", str(page),
-                    "-singlefile",
-                    str(pdf_path),
-                    str(out_prefix),
-                ],
-                capture_output=True,
-                timeout=30,
-            )
-        except (subprocess.TimeoutExpired, Exception):
-            return None
+    dest_dir = output_dir or pdf_path.parent
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    out_prefix = dest_dir / f"preview-page{page}"
 
-        png_path = Path(f"{out_prefix}.png")
-        if png_path.exists():
-            return base64.b64encode(png_path.read_bytes()).decode("ascii")
+    try:
+        subprocess.run(
+            [
+                "pdftoppm",
+                "-png",
+                "-r", str(dpi),
+                "-f", str(page),
+                "-l", str(page),
+                "-singlefile",
+                str(pdf_path),
+                str(out_prefix),
+            ],
+            capture_output=True,
+            timeout=30,
+        )
+    except (subprocess.TimeoutExpired, Exception):
+        return None
 
-    return None
+    png_path = Path(f"{out_prefix}.png")
+    if not png_path.exists():
+        return None
+
+    width, height = _get_png_dimensions(png_path)
+
+    return PreviewResult(
+        png_path=png_path,
+        page=page,
+        width=width,
+        height=height,
+        file_size=png_path.stat().st_size,
+    )
+
+
+def _get_png_dimensions(path: Path) -> tuple[int, int]:
+    """Read PNG width and height from the IHDR chunk (bytes 16-23)."""
+    try:
+        with open(path, "rb") as f:
+            f.read(16)  # Skip PNG signature (8) + IHDR chunk header (8)
+            width = int.from_bytes(f.read(4), "big")
+            height = int.from_bytes(f.read(4), "big")
+            return width, height
+    except Exception:
+        return 0, 0
 
 
 def _parse_errors(log: str) -> list[CompileError]:
