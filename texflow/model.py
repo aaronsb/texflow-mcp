@@ -57,6 +57,7 @@ class Layout:
     lof: bool = False
     lot: bool = False
     line_spacing: float | None = None
+    styles: list[str] = field(default_factory=list)
 
 
 # --- Metadata ---

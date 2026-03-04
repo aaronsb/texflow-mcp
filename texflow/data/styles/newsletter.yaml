@@ -1,0 +1,18 @@
+---
+name: Newsletter
+description: Magazine-style with decorative rules, drop cap support, two-tone accents
+packages:
+  - titlesec
+  - xcolor
+  - lettrine
+  - parskip
+preamble:
+  - \definecolor{heading}{HTML}{C0392B}
+  - \definecolor{accent}{HTML}{E74C3C}
+  - \definecolor{subtle}{HTML}{BDC3C7}
+  - \titleformat{\section}{\Large\bfseries\sffamily\color{heading}}{}{0em}{\MakeUppercase}[\color{subtle}\titlerule]
+  - \titleformat{\subsection}{\large\bfseries\sffamily\color{heading}}{}{0em}{}
+  - \titlespacing*{\section}{0pt}{3ex plus 1ex}{1.5ex plus 0.5ex}
+  - \hypersetup{linkcolor=accent,urlcolor=accent,citecolor=heading}
+  - \setlength{\DefaultNindent}{0pt}
+---

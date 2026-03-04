@@ -1,0 +1,17 @@
+---
+name: Minimal
+description: No decoration, generous whitespace, neutral palette, clean typography
+packages:
+  - titlesec
+  - xcolor
+  - parskip
+preamble:
+  - \definecolor{heading}{HTML}{333333}
+  - \definecolor{accent}{HTML}{666666}
+  - \titleformat{\section}{\Large\bfseries\color{heading}}{}{0em}{}
+  - \titleformat{\subsection}{\large\color{heading}}{}{0em}{}
+  - \titleformat{\subsubsection}{\normalsize\color{heading}}{}{0em}{}
+  - \titlespacing*{\section}{0pt}{2ex plus 1ex}{1ex plus 0.5ex}
+  - \titlespacing*{\subsection}{0pt}{1.5ex plus 0.5ex}{0.75ex plus 0.25ex}
+  - \hypersetup{linkcolor=accent,urlcolor=accent,citecolor=accent}
+---

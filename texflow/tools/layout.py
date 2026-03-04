@@ -30,6 +30,7 @@ def layout_tool(
     lof: bool | None = None,
     lot: bool | None = None,
     line_spacing: float | None = None,
+    style: str | list[str] | None = None,
 ) -> str:
     """Configure document typesetting and layout.
 
@@ -122,6 +123,23 @@ def layout_tool(
     if line_spacing is not None:
         lo.line_spacing = line_spacing
         changes.append(f"line_spacing={line_spacing}")
+
+    if style is not None:
+        from ..styles import get_style
+        if isinstance(style, str):
+            style_list = [style] if style else []
+        else:
+            style_list = list(style)
+        # Validate all slugs
+        for slug in style_list:
+            if get_style(slug) is None:
+                from ..styles import list_styles, format_style_list
+                return f"Error: style '{slug}' not found.\n\n{format_style_list(list_styles())}"
+        lo.styles = style_list
+        if style_list:
+            changes.append(f"style={', '.join(style_list)}")
+        else:
+            changes.append("style cleared")
 
     auto_save()
 

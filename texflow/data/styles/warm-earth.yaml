@@ -1,0 +1,16 @@
+---
+name: Warm Earth
+description: Earth-tone palette with warm accents, serif body, inviting feel
+packages:
+  - titlesec
+  - xcolor
+  - parskip
+preamble:
+  - \definecolor{heading}{HTML}{6B4226}
+  - \definecolor{accent}{HTML}{D4A574}
+  - \definecolor{deep}{HTML}{3E2723}
+  - \titleformat{\section}{\Large\bfseries\color{heading}}{}{0em}{}[\color{accent}\titlerule]
+  - \titleformat{\subsection}{\large\bfseries\color{heading}}{}{0em}{}
+  - \titleformat{\subsubsection}{\normalsize\itshape\color{deep}}{}{0em}{}
+  - \hypersetup{linkcolor=deep,urlcolor=accent,citecolor=heading}
+---
