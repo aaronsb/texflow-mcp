@@ -161,6 +161,20 @@ def _preamble(doc: Document) -> str:
 
     lines.append("")
 
+    # Extra preamble lines from RawLatex blocks (e.g., \usetikzlibrary)
+    extra_preamble: list[str] = []
+    seen: set[str] = set()
+    for block in doc._walk_blocks(doc.content):
+        if isinstance(block, RawLatex) and block.preamble:
+            for line in block.preamble:
+                if line not in seen:
+                    seen.add(line)
+                    extra_preamble.append(line)
+    if extra_preamble:
+        for line in extra_preamble:
+            lines.append(line)
+        lines.append("")
+
     # Line spacing
     if layout.line_spacing:
         if layout.line_spacing == 1.5:

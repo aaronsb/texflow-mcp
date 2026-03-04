@@ -299,6 +299,27 @@ def test_serialize_raw_tikz_includes_package():
     assert "\\usepackage{tikz}" in tex
 
 
+def test_serialize_raw_preamble_lines():
+    """RawLatex preamble lines are emitted in the document preamble."""
+    doc = Document(content=[RawLatex(
+        tex="\\begin{tikzpicture}\\end{tikzpicture}",
+        preamble=["\\usetikzlibrary{arrows.meta,positioning}"],
+    )])
+    tex = serialize(doc)
+    assert "\\usetikzlibrary{arrows.meta,positioning}" in tex
+    assert tex.index("\\usetikzlibrary") < tex.index("\\begin{document}")
+
+
+def test_serialize_raw_preamble_deduplication():
+    """Duplicate preamble lines from multiple blocks are emitted once."""
+    doc = Document(content=[
+        RawLatex(tex="a", preamble=["\\usetikzlibrary{positioning}"]),
+        RawLatex(tex="b", preamble=["\\usetikzlibrary{positioning}"]),
+    ])
+    tex = serialize(doc)
+    assert tex.count("\\usetikzlibrary{positioning}") == 1
+
+
 def test_serialize_font_packages():
     doc = Document(layout=Layout(font_main="palatino"))
     tex = serialize(doc)

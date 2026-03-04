@@ -154,6 +154,7 @@ class Equation:
 class RawLatex:
     tex: str  # Escape hatch: verbatim LaTeX
     template: str | None = None  # Template slug used to create this block
+    preamble: list[str] = field(default_factory=list)  # Extra preamble lines
 
 
 Block = Union[Section, Paragraph, Figure, Table, CodeBlock, ItemList, Equation, RawLatex]

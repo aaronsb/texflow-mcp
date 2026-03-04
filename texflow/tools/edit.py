@@ -138,7 +138,7 @@ def _build_block(
                 if tmpl is None:
                     return f"Error: template '{template}' not found. Use reference(action='templates') to browse."
                 tex_content = content if content else tmpl.body
-                return RawLatex(tex=tex_content, template=template)
+                return RawLatex(tex=tex_content, template=template, preamble=list(tmpl.preamble))
             if not content:
                 from ..templates import list_templates, format_template_list
                 return format_template_list(list_templates())
