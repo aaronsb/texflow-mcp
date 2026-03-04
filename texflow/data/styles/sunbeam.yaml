@@ -1,0 +1,20 @@
+---
+name: Sunbeam
+description: Warm cream-yellow background with amber headings, cheerful and bright
+packages:
+  - titlesec
+  - xcolor
+  - parskip
+preamble:
+  - \definecolor{pageBg}{HTML}{FFFBEB}
+  - \definecolor{bodyText}{HTML}{2D2D2D}
+  - \definecolor{heading}{HTML}{B45309}
+  - \definecolor{accent}{HTML}{D97706}
+  - \definecolor{warm}{HTML}{F59E0B}
+  - \pagecolor{pageBg}
+  - \color{bodyText}
+  - \titleformat{\section}{\Large\bfseries\sffamily\color{heading}}{}{0em}{}[\color{warm}\titlerule]
+  - \titleformat{\subsection}{\large\bfseries\sffamily\color{heading}}{}{0em}{}
+  - \titleformat{\subsubsection}{\normalsize\bfseries\color{accent}}{}{0em}{}
+  - \hypersetup{linkcolor=accent,urlcolor=accent,citecolor=heading}
+---

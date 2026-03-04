@@ -1,0 +1,20 @@
+---
+name: Dark Academia
+description: Deep charcoal background with cream text, gold accents, scholarly feel
+packages:
+  - titlesec
+  - xcolor
+  - parskip
+preamble:
+  - \definecolor{pageBg}{HTML}{1E1E2E}
+  - \definecolor{bodyText}{HTML}{E8E0D0}
+  - \definecolor{heading}{HTML}{D4A843}
+  - \definecolor{accent}{HTML}{89B4C8}
+  - \definecolor{subtle}{HTML}{8B8B9E}
+  - \pagecolor{pageBg}
+  - \color{bodyText}
+  - \titleformat{\section}{\Large\bfseries\sffamily\color{heading}}{}{0em}{}[\color{subtle}\titlerule]
+  - \titleformat{\subsection}{\large\bfseries\sffamily\color{heading}}{}{0em}{}
+  - \titleformat{\subsubsection}{\normalsize\bfseries\color{accent}}{}{0em}{}
+  - \hypersetup{linkcolor=accent,urlcolor=accent,citecolor=heading}
+---

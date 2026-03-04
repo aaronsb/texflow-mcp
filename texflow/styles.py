@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
+
+log = logging.getLogger(__name__)
 
 from .templates import _parse_frontmatter
 
@@ -85,11 +88,15 @@ def resolve_style_stack(slugs: list[str]) -> tuple[set[str], list[str]]:
     """
     packages: set[str] = set()
     preamble: list[str] = []
+    # Deduplicate identical lines only. Different commands targeting the same
+    # LaTeX entity (e.g., two \titleformat{\section} with different values)
+    # are both emitted — LaTeX uses the last definition, achieving "later wins".
     seen_preamble: set[str] = set()
 
     for slug in slugs:
         style = get_style(slug)
         if style is None:
+            log.warning("Style '%s' not found, skipping", slug)
             continue
         packages.update(style.packages)
         for line in style.preamble:

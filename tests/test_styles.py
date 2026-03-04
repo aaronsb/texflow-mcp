@@ -17,8 +17,13 @@ class TestStyleLoading:
         styles = get_styles()
         assert isinstance(styles, dict)
 
-    def test_six_styles_loaded(self):
-        assert len(get_styles()) == 6
+    def test_all_styles_loaded(self):
+        styles = get_styles()
+        # 6 original + 5 background-colored styles
+        assert len(styles) >= 11
+        # Verify background styles are present
+        for slug in ("dark-academia", "midnight", "soft-rose", "ocean-depth", "sunbeam"):
+            assert slug in styles, f"Missing style: {slug}"
 
     def test_modern_blue_loaded(self):
         s = get_style("modern-blue")
@@ -144,6 +149,60 @@ class TestLayoutRoundtrip:
         data = doc.to_dict()
         restored = Document.from_dict(data)
         assert restored.layout.styles == []
+
+
+class TestBackgroundStyles:
+    """Test styles that use pagecolor for colored backgrounds."""
+
+    def test_dark_academia_has_pagecolor(self):
+        s = get_style("dark-academia")
+        assert s is not None
+        assert any("\\pagecolor" in line for line in s.preamble)
+        assert any("\\color{bodyText}" in line for line in s.preamble)
+
+    def test_midnight_has_pagecolor(self):
+        s = get_style("midnight")
+        assert s is not None
+        assert any("\\pagecolor" in line for line in s.preamble)
+
+    def test_background_styles_compile(self):
+        """Background styles include pagecolor + color in preamble."""
+        for slug in ("dark-academia", "midnight", "soft-rose", "ocean-depth", "sunbeam"):
+            s = get_style(slug)
+            assert s is not None, f"Missing: {slug}"
+            assert any("\\pagecolor" in line for line in s.preamble), (
+                f"{slug} missing \\pagecolor"
+            )
+
+    def test_background_style_serializes(self):
+        doc = Document(
+            layout=Layout(styles=["dark-academia"]),
+            content=[Paragraph(text="Hello darkness")],
+        )
+        tex = serialize(doc)
+        assert "\\pagecolor{pageBg}" in tex
+        assert "\\color{bodyText}" in tex
+
+
+class TestLayoutToolValidation:
+    """Test style validation in the layout tool."""
+
+    def test_invalid_style_returns_error(self):
+        from texflow.tools import state as st
+        from texflow.tools.layout import layout_tool
+        st.set_doc(Document(content=[Paragraph(text="test")]))
+        result = layout_tool(style="nonexistent-style")
+        assert "Error" in result
+        assert "nonexistent-style" in result
+        assert "modern-blue" in result  # Should list available styles
+
+    def test_valid_style_accepted(self):
+        from texflow.tools import state as st
+        from texflow.tools.layout import layout_tool
+        st.set_doc(Document(content=[Paragraph(text="test")]))
+        result = layout_tool(style="modern-blue")
+        assert "Error" not in result
+        assert "modern-blue" in result
 
 
 class TestFormatting:
