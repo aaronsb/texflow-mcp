@@ -42,6 +42,36 @@ def _load_font_map() -> dict:
     return _FONT_MAP
 
 
+# TikZ library detection: pattern → library name
+_TIKZ_LIBRARY_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"Stealth|->|latex'|{Latex\["), "arrows.meta"),
+    (re.compile(r"right\s*=\s*of|left\s*=\s*of|above\s*=\s*of|below\s*=\s*of|node distance"), "positioning"),
+    (re.compile(r"let\s*\\p|\\tikzset"), "calc"),
+    (re.compile(r"diamond|ellipse|trapezium|regular polygon|signal|cylinder|star"), "shapes.geometric"),
+    (re.compile(r"fit=\("), "fit"),
+    (re.compile(r"\\matrix|matrix of nodes"), "matrix"),
+    (re.compile(r"decoration|decorate"), "decorations"),
+    (re.compile(r"rounded corners|chamfered rectangle"), "shapes.misc"),
+]
+
+
+def _detect_tikz_libraries(doc: Document) -> set[str]:
+    """Scan RawLatex blocks for tikz features and return needed libraries."""
+    libs: set[str] = set()
+    for block in doc._walk_blocks(doc.content):
+        if isinstance(block, RawLatex) and "tikz" in block.tex.lower():
+            for pattern, lib in _TIKZ_LIBRARY_PATTERNS:
+                if pattern.search(block.tex):
+                    libs.add(lib)
+            # Also collect from explicit preamble declarations
+            for line in block.preamble:
+                m = re.match(r"\\usetikzlibrary\{(.+)\}", line)
+                if m:
+                    for lib_name in m.group(1).split(","):
+                        libs.add(lib_name.strip())
+    return libs
+
+
 # --- LaTeX escaping ---
 
 _LATEX_SPECIAL = re.compile(r"([&%$#_{}~^\\])")
@@ -188,6 +218,17 @@ def _preamble(doc: Document) -> str:
 
     lines.append("")
 
+    # Auto-detect tikz library needs from raw content
+    auto_tikz_libs: set[str] = set()
+    if "tikz" in packages or "pgfplots" in packages:
+        auto_tikz_libs = _detect_tikz_libraries(doc)
+        if auto_tikz_libs:
+            lines.append(f"\\usetikzlibrary{{{','.join(sorted(auto_tikz_libs))}}}")
+        if "pgfplots" in packages:
+            lines.append("\\pgfplotsset{compat=1.18}")
+        if auto_tikz_libs or "pgfplots" in packages:
+            lines.append("")
+
     # Style preamble lines (after packages, before block-level preamble)
     if style_preamble:
         for line in style_preamble:
@@ -200,6 +241,11 @@ def _preamble(doc: Document) -> str:
     for block in doc._walk_blocks(doc.content):
         if isinstance(block, RawLatex) and block.preamble:
             for line in block.preamble:
+                # Skip usetikzlibrary if auto-detection already covers those libs
+                if auto_tikz_libs and line.startswith("\\usetikzlibrary"):
+                    m = re.match(r"\\usetikzlibrary\{(.+)\}", line)
+                    if m and all(lib.strip() in auto_tikz_libs for lib in m.group(1).split(",")):
+                        continue
                 if line not in seen:
                     seen.add(line)
                     extra_preamble.append(line)

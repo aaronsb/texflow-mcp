@@ -301,6 +301,24 @@ def test_serialize_raw_tikz_includes_package():
     assert "\\usepackage{tikz}" in tex
 
 
+def test_serialize_tikz_auto_detects_libraries():
+    """RawLatex with Stealth arrows and positioning auto-loads tikz libraries."""
+    doc = Document(content=[RawLatex(
+        tex="\\begin{tikzpicture}[node distance=2cm]\n\\draw[-{Stealth}] (a) -- (b);\n\\end{tikzpicture}",
+    )])
+    tex = serialize(doc)
+    assert "\\usetikzlibrary{" in tex
+    assert "arrows.meta" in tex
+    assert "positioning" in tex
+
+
+def test_serialize_pgfplots_compat():
+    """pgfplots triggers \\pgfplotsset{compat=1.18}."""
+    doc = Document(content=[RawLatex(tex="\\begin{axis}\\end{axis}")])
+    tex = serialize(doc)
+    assert "\\pgfplotsset{compat=1.18}" in tex
+
+
 def test_serialize_raw_preamble_lines():
     """RawLatex preamble lines are emitted in the document preamble."""
     doc = Document(content=[RawLatex(
