@@ -1,3 +1,5 @@
 """TeXFlow - LaTeX document compiler with MCP interface."""
 
-__version__ = "1.0.0"
+from importlib.metadata import version as _version
+
+__version__ = _version("texflow-mcp")
