@@ -608,7 +608,24 @@ _RE_BIB_ENTRY = re.compile(
     r"@(\w+)\s*\{\s*([\w:./-]+)\s*,\s*(.*?)\s*\}(?=\s*@|\s*\Z)",
     re.DOTALL,
 )
-_RE_BIB_FIELD = re.compile(r"(\w+)\s*=\s*\{([^}]*)\}")
+# Handles one level of nested braces: title = {The {RNA} Polymerase}
+_RE_BIB_FIELD = re.compile(r"(\w+)\s*=\s*\{((?:[^{}]|\{[^{}]*\})*)\}")
+
+
+def parse_bib_entry(text: str):
+    """Parse a single BibTeX entry string into a BibEntry, or None."""
+    from .model import BibEntry
+
+    m = _RE_BIB_ENTRY.search(text)
+    if not m:
+        return None
+    entry_type = m.group(1).lower()
+    key = m.group(2)
+    body = m.group(3)
+    fields: dict[str, str] = {}
+    for fm in _RE_BIB_FIELD.finditer(body):
+        fields[fm.group(1).lower()] = fm.group(2)
+    return BibEntry(key=key, entry_type=entry_type, fields=fields)
 
 
 def parse_bib_file(text: str) -> list:

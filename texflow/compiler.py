@@ -107,7 +107,7 @@ def compile_tex(
                     text=True,
                     timeout=60,
                 )
-            except (subprocess.TimeoutExpired, Exception) as e:
+            except Exception as e:
                 errors.append(CompileError(message=f"Biber failed: {e}"))
 
         # Pass 3 & 4: xelatex (resolve references and bibliography)

@@ -305,14 +305,6 @@ def _read(section_path: str | None) -> str:
 
 # --- Bibliography actions ---
 
-import re
-
-_RE_BIB_ENTRY = re.compile(
-    r"@(\w+)\s*\{\s*([\w:./-]+)\s*,\s*(.*?)\s*\}$",
-    re.DOTALL | re.MULTILINE,
-)
-_RE_BIB_FIELD = re.compile(r"(\w+)\s*=\s*\{([^}]*)\}")
-
 _VALID_BIB_STYLES = {
     "authoryear", "numeric", "alphabetic", "authortitle",
     "verbose", "reading", "draft", "apa", "ieee", "nature",
@@ -320,25 +312,12 @@ _VALID_BIB_STYLES = {
 }
 
 
-def _parse_bibtex_entry(text: str) -> BibEntry | None:
-    """Parse a single BibTeX entry string into a BibEntry."""
-    m = _RE_BIB_ENTRY.search(text)
-    if not m:
-        return None
-    entry_type = m.group(1).lower()
-    key = m.group(2)
-    body = m.group(3)
-    fields: dict[str, str] = {}
-    for fm in _RE_BIB_FIELD.finditer(body):
-        fields[fm.group(1).lower()] = fm.group(2)
-    return BibEntry(key=key, entry_type=entry_type, fields=fields)
-
-
 def _bib_add(source: str | None) -> str:
     if not source:
         return "Error: 'source' is required. Provide a BibTeX entry, e.g.:\n@article{key, author={...}, title={...}, year={2024}}"
     doc = require_doc()
-    entry = _parse_bibtex_entry(source)
+    from ..tex_ingestion import parse_bib_entry
+    entry = parse_bib_entry(source)
     if not entry:
         return "Error: Could not parse BibTeX entry. Expected format:\n@type{key, field = {value}, ...}"
     if doc.bibliography is None:

@@ -535,6 +535,33 @@ class TestBibFileParsing:
         entries = parse_bib_file("")
         assert len(entries) == 0
 
+    def test_nested_braces(self):
+        bib = "@article{rna, title = {The {RNA} Polymerase}, author = {Jane {van der Berg}}}"
+        entries = parse_bib_file(bib)
+        assert len(entries) == 1
+        assert entries[0].fields["title"] == "The {RNA} Polymerase"
+        assert entries[0].fields["author"] == "Jane {van der Berg}"
+
+
+class TestCitationRoundTrip:
+    def test_serialize_then_ingest(self):
+        from texflow.model import BibEntry, Bibliography
+        from texflow.serializer import serialize
+
+        original = Document(
+            metadata=Metadata(title="Cite Test"),
+            content=[Paragraph(text="See [@smith2024, p. 5].")],
+            bibliography=Bibliography(
+                style="numeric",
+                entries=[BibEntry(key="smith2024", entry_type="article", fields={"title": "T"})],
+            ),
+        )
+        tex = serialize(original)
+        restored = ingest_tex(tex)
+        p = restored.content[0]
+        assert isinstance(p, Paragraph)
+        assert "[@smith2024, p. 5]" in p.text
+
 
 class TestBiblatexPreambleIngestion:
     def test_biblatex_style_detected(self):
