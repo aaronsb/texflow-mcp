@@ -1,0 +1,89 @@
+{
+  "\\cite": {
+    "syntax": "\\cite[note]{key}",
+    "description": "Insert a citation. In TeXFlow, use [@key] in paragraph text instead — the serializer converts it to \\cite{key} automatically.",
+    "package": "biblatex",
+    "category": "citations",
+    "examples": [
+      "\\cite{smith2024}",
+      "\\cite[p.~42]{smith2024}",
+      "\\cite{smith2024,jones2023}"
+    ],
+    "related": ["\\textcite", "\\parencite", "\\printbibliography"]
+  },
+  "\\textcite": {
+    "syntax": "\\textcite{key}",
+    "description": "Textual citation: author name in running text with year in parentheses. e.g. 'Smith (2024) argues...'",
+    "package": "biblatex",
+    "category": "citations",
+    "examples": [
+      "\\textcite{smith2024} argues that...",
+      "\\textcite{smith2024,jones2023} both show..."
+    ],
+    "related": ["\\cite", "\\parencite"]
+  },
+  "\\parencite": {
+    "syntax": "\\parencite[prenote][postnote]{key}",
+    "description": "Parenthetical citation: full citation in parentheses. e.g. '(Smith 2024, p. 42)'",
+    "package": "biblatex",
+    "category": "citations",
+    "examples": [
+      "results were significant \\parencite{smith2024}",
+      "\\parencite[see][p.~42]{smith2024}"
+    ],
+    "related": ["\\cite", "\\textcite"]
+  },
+  "\\autocite": {
+    "syntax": "\\autocite{key}",
+    "description": "Context-sensitive citation: adapts to the bibliography style (footnote in verbose styles, parenthetical in authoryear).",
+    "package": "biblatex",
+    "category": "citations",
+    "examples": [
+      "evidence suggests \\autocite{smith2024}"
+    ],
+    "related": ["\\cite", "\\parencite"]
+  },
+  "\\fullcite": {
+    "syntax": "\\fullcite{key}",
+    "description": "Print the full bibliography entry inline in running text.",
+    "package": "biblatex",
+    "category": "citations",
+    "examples": [
+      "The original paper is \\fullcite{smith2024}."
+    ],
+    "related": ["\\cite", "\\printbibliography"]
+  },
+  "\\nocite": {
+    "syntax": "\\nocite{key}",
+    "description": "Include an entry in the bibliography without citing it in the text. Use \\nocite{*} to include all entries.",
+    "package": "biblatex",
+    "category": "citations",
+    "examples": [
+      "\\nocite{smith2024}",
+      "\\nocite{*}"
+    ],
+    "related": ["\\cite", "\\printbibliography"]
+  },
+  "\\printbibliography": {
+    "syntax": "\\printbibliography[options]",
+    "description": "Print the bibliography. In TeXFlow, this is added automatically when bibliography entries exist.",
+    "package": "biblatex",
+    "category": "citations",
+    "examples": [
+      "\\printbibliography",
+      "\\printbibliography[title={References}]",
+      "\\printbibliography[heading=subbibliography]"
+    ],
+    "related": ["\\cite", "\\addbibresource"]
+  },
+  "\\addbibresource": {
+    "syntax": "\\addbibresource{filename.bib}",
+    "description": "Declare a .bib file to use. In TeXFlow, this is handled automatically — use document(action='bib_add') to add entries.",
+    "package": "biblatex",
+    "category": "citations",
+    "examples": [
+      "\\addbibresource{references.bib}"
+    ],
+    "related": ["\\printbibliography", "\\cite"]
+  }
+}
