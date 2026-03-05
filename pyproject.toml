@@ -1,6 +1,6 @@
 [project]
 name = "texflow-mcp"
-version = "1.5.1"
+version = "1.5.2"
 description = "LaTeX document compiler with MCP interface"
 readme = "README.md"
 license = "MIT"
