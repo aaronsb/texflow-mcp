@@ -24,6 +24,7 @@ from ..model import (
 from .state import (
     auto_save,
     check_confirmation,
+    clear_doc,
     get_doc,
     get_output_dir,
     require_doc,
@@ -55,6 +56,7 @@ def document_tool(
     - outline: Show document structure (sections, block counts).
     - read: Read content of a specific section as prose text.
     - update: Update document metadata (title, author, date, abstract).
+    - reset: Clear the current document and saved state. Next create/ingest starts fresh.
     """
     match action:
         case "create":
@@ -67,8 +69,10 @@ def document_tool(
             return _read(section)
         case "update":
             return _update(title, author, date, abstract)
+        case "reset":
+            return _reset()
         case _:
-            return f"Unknown action: {action}. Valid actions: create, ingest, outline, read, update"
+            return f"Unknown action: {action}. Valid actions: create, ingest, outline, read, update, reset"
 
 
 def _create(
@@ -188,8 +192,12 @@ def _ingest(source: str | None, section: str | None = None) -> str:
         source_path = Path(source)
         if source_path.exists() and source_path.is_file():
             text = source_path.read_text(encoding="utf-8")
-            doc = ingest_markdown(text)
-            if existing_layout is not None:
+            if source_path.suffix.lower() == ".tex":
+                from ..tex_ingestion import ingest_tex
+                doc = ingest_tex(text)
+            else:
+                doc = ingest_markdown(text)
+            if existing_layout is not None and not source_path.suffix.lower() == ".tex":
                 doc.layout = existing_layout
             doc.save_path = get_output_dir() / "document.texflow.json"
             set_doc(doc)
@@ -242,6 +250,15 @@ def _ingest_into_section(source: str, section_path: str) -> str:
     block_count = len(blocks)
     section_count = sum(1 for b in blocks if isinstance(b, Section))
     return format_section_ingest_result(source_label, section_path, block_count, section_count)
+
+
+def _reset() -> str:
+    """Clear the current document and saved state file."""
+    existing = get_doc()
+    if existing is None:
+        return "No document to reset."
+    clear_doc()
+    return "Document cleared. Use document(action='create') or document(action='ingest') to start fresh."
 
 
 def _outline() -> str:

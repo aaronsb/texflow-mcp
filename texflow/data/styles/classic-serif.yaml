@@ -1,0 +1,15 @@
+---
+name: Classic Serif
+description: Traditional serif typography, muted colors, indented paragraphs, elegant headings
+packages:
+  - titlesec
+  - xcolor
+preamble:
+  - \definecolor{heading}{HTML}{2C3E50}
+  - \definecolor{accent}{HTML}{7F8C8D}
+  - \titleformat{\section}{\Large\bfseries\color{heading}}{\thesection}{1em}{}
+  - \titleformat{\subsection}{\large\bfseries\color{heading}}{\thesubsection}{1em}{}
+  - \titleformat{\subsubsection}{\normalsize\itshape\color{heading}}{\thesubsubsection}{1em}{}
+  - \hypersetup{linkcolor=heading,urlcolor=accent,citecolor=heading}
+  - \setlength{\parindent}{1.5em}
+---

@@ -1,0 +1,15 @@
+---
+name: Modern Blue
+description: Clean sans-serif headings with blue accents, parskip spacing, subtle titlerule
+packages:
+  - titlesec
+  - xcolor
+  - parskip
+preamble:
+  - \definecolor{heading}{HTML}{1A5276}
+  - \definecolor{accent}{HTML}{2E86C1}
+  - \titleformat{\section}{\Large\bfseries\sffamily\color{heading}}{}{0em}{}[\color{accent}\titlerule]
+  - \titleformat{\subsection}{\large\bfseries\sffamily\color{heading}}{}{0em}{}
+  - \titleformat{\subsubsection}{\normalsize\bfseries\sffamily\color{heading}}{}{0em}{}
+  - \hypersetup{linkcolor=accent,urlcolor=accent,citecolor=heading}
+---

@@ -1,0 +1,20 @@
+---
+name: Soft Rose
+description: Light blush pink background with deep plum headings, warm and approachable
+packages:
+  - titlesec
+  - xcolor
+  - parskip
+preamble:
+  - \definecolor{pageBg}{HTML}{FFF0F3}
+  - \definecolor{bodyText}{HTML}{2D2D2D}
+  - \definecolor{heading}{HTML}{7B2D5F}
+  - \definecolor{accent}{HTML}{C44569}
+  - \definecolor{soft}{HTML}{E8A0BF}
+  - \pagecolor{pageBg}
+  - \color{bodyText}
+  - \titleformat{\section}{\Large\bfseries\sffamily\color{heading}}{}{0em}{}[\color{soft}\titlerule]
+  - \titleformat{\subsection}{\large\bfseries\sffamily\color{heading}}{}{0em}{}
+  - \titleformat{\subsubsection}{\normalsize\itshape\color{accent}}{}{0em}{}
+  - \hypersetup{linkcolor=accent,urlcolor=accent,citecolor=heading}
+---

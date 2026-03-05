@@ -151,6 +151,13 @@ def _preamble(doc: Document) -> str:
             if pkg_info.get("package"):
                 packages.add(pkg_info["package"])
 
+    # Resolve style stack
+    style_preamble: list[str] = []
+    if layout.styles:
+        from .styles import resolve_style_stack
+        style_pkgs, style_preamble = resolve_style_stack(layout.styles)
+        packages.update(style_pkgs)
+
     # Sort for deterministic output
     for pkg in sorted(packages):
         options = _package_options(pkg, doc)
@@ -160,6 +167,12 @@ def _preamble(doc: Document) -> str:
             lines.append(f"\\usepackage{{{pkg}}}")
 
     lines.append("")
+
+    # Style preamble lines (after packages, before block-level preamble)
+    if style_preamble:
+        for line in style_preamble:
+            lines.append(line)
+        lines.append("")
 
     # Extra preamble lines from RawLatex blocks (e.g., \usetikzlibrary)
     extra_preamble: list[str] = []
@@ -222,6 +235,9 @@ def _package_options(pkg: str, doc: Document) -> str:
             m = doc.layout.margins
             return f"top={m.top},bottom={m.bottom},left={m.left},right={m.right}"
         case "hyperref":
+            # If styles are applied, only set colorlinks=true — let style \hypersetup handle colors
+            if doc.layout.styles:
+                return "colorlinks=true"
             return "colorlinks=true,linkcolor=blue,urlcolor=cyan,citecolor=green"
         case _:
             return ""

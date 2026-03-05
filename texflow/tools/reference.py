@@ -106,8 +106,10 @@ def reference_tool(
             return _list_templates(query)
         case "capabilities":
             return _show_capabilities()
+        case "styles":
+            return _list_styles(query)
         case _:
-            return f"Unknown action: {action}. Valid: search, symbol, package, check_style, error_help, example, templates, capabilities"
+            return f"Unknown action: {action}. Valid: search, symbol, package, check_style, error_help, example, templates, capabilities, styles"
 
 
 def _search(query: str | None) -> str:
@@ -424,6 +426,36 @@ def _list_templates(query: str | None) -> str:
         ]
 
     return format_template_list(matches)
+
+
+def _list_styles(query: str | None) -> str:
+    from ..styles import list_styles, format_style_list, get_style
+
+    if not query:
+        return format_style_list(list_styles())
+
+    # Exact slug match
+    style = get_style(query)
+    if style:
+        lines = [
+            f"Style: {style.name} ({style.slug})",
+            f"  {style.description}",
+        ]
+        if style.packages:
+            lines.append(f"  Packages: {', '.join(style.packages)}")
+        if style.preamble:
+            lines.append(f"  Preamble ({len(style.preamble)} lines):")
+            for line in style.preamble:
+                lines.append(f"    {line}")
+        return "\n".join(lines)
+
+    # Fuzzy search
+    q = query.lower()
+    matches = [
+        s for s in list_styles()
+        if q in s.name.lower() or q in s.description.lower() or q in s.slug.lower()
+    ]
+    return format_style_list(matches)
 
 
 def _show_capabilities() -> str:

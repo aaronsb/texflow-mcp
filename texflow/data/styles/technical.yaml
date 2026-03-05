@@ -1,0 +1,16 @@
+---
+name: Technical
+description: Monospace accents, gray palette, numbered headings, structured feel
+packages:
+  - titlesec
+  - xcolor
+  - parskip
+preamble:
+  - \definecolor{heading}{HTML}{2C3E50}
+  - \definecolor{accent}{HTML}{95A5A6}
+  - \definecolor{rule}{HTML}{BDC3C7}
+  - \titleformat{\section}{\Large\bfseries\ttfamily\color{heading}}{\thesection}{1em}{}[\color{rule}\titlerule]
+  - \titleformat{\subsection}{\large\bfseries\color{heading}}{\thesubsection}{1em}{}
+  - \titleformat{\subsubsection}{\normalsize\ttfamily\color{heading}}{\thesubsubsection}{1em}{}
+  - \hypersetup{linkcolor=heading,urlcolor=accent,citecolor=heading}
+---

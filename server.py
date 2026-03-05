@@ -60,10 +60,11 @@ def document(
 
     Actions:
     - create: Scaffold a new empty document. Optionally set class, title, author.
-    - ingest: Parse markdown text or file path into the document model.
+    - ingest: Parse markdown text, .tex file, or .md file into the document model.
     - outline: Show document structure (sections, block counts).
     - read: Read content of a specific section as prose text.
     - update: Update document metadata (title, author, date, abstract).
+    - reset: Clear the current document and saved state. Next create/ingest starts fresh.
     """
     return _with_hints(document_tool(
         action, document_class, title, author, date, abstract, source, section,
@@ -91,6 +92,7 @@ def layout(
     lof: bool | None = None,
     lot: bool | None = None,
     line_spacing: float | None = None,
+    style: str | list[str] | None = None,
 ) -> str:
     """Configure document typesetting and layout.
 
@@ -101,7 +103,7 @@ def layout(
         columns, font, font_sans, font_mono, font_size, paper, margins,
         header_left, header_center, header_right,
         footer_left, footer_center, footer_right,
-        toc, lof, lot, line_spacing,
+        toc, lof, lot, line_spacing, style,
     ))
 
 
@@ -190,6 +192,7 @@ def reference(
     - example: Get working examples for a topic (table, equation, figure, list, code).
     - templates: Browse available LaTeX templates. Optionally filter by category or slug.
     - capabilities: Enumerate system LaTeX support (engines, tools, packages).
+    - styles: Browse document style presets. Optionally filter by slug or keyword.
     """
     return _with_hints(reference_tool(action, query, description, name, error, topic, path))
 
