@@ -444,3 +444,25 @@ class TestRoundTrip:
         assert lst.ordered is True
         assert len(lst.items) == 2
         assert lst.items[0].text == "First"
+
+    def test_round_trip_table_then_list(self):
+        """Regression: nested envs (tabular inside table) must not swallow subsequent envs."""
+        original = Document(
+            metadata=Metadata(title="Mixed Test"),
+            content=[
+                Section(title="Results", level=1, content=[
+                    Table(headers=["X"], rows=[["1"]], booktabs=True),
+                    ItemList(
+                        items=[ListItem(text="A"), ListItem(text="B")],
+                        ordered=False,
+                    ),
+                ]),
+            ],
+        )
+        tex = serialize(original)
+        restored = ingest_tex(tex)
+        results = restored.content[0]
+        assert len(results.content) == 2
+        assert isinstance(results.content[0], Table)
+        assert isinstance(results.content[1], ItemList)
+        assert len(results.content[1].items) == 2

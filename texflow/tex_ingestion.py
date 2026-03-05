@@ -475,11 +475,9 @@ def _parse_body(text: str) -> tuple[list, dict[str, bool]]:
             i += 1
             while i < len(lines) and depth > 0:
                 s = lines[i].strip()
-                if _RE_BEGIN_ENV.match(s):
-                    # Check if same or nested env
-                    inner_m = _RE_BEGIN_ENV.match(s)
-                    if inner_m:
-                        depth += 1
+                inner_m = _RE_BEGIN_ENV.match(s)
+                if inner_m and inner_m.group(1) == env_name:
+                    depth += 1
                 end_m = _RE_END_ENV.match(s)
                 if end_m and end_m.group(1) == env_name:
                     depth -= 1
