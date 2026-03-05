@@ -23,7 +23,7 @@ from .model import (
 
 # --- Regex patterns ---
 
-_RE_DOCUMENTCLASS = re.compile(r"\\documentclass\[([^\]]*)\]\{(\w+)\}")
+_RE_DOCUMENTCLASS = re.compile(r"\\documentclass(?:\[([^\]]*)\])?\{(\w+)\}")
 _RE_GEOMETRY = re.compile(r"\\usepackage\[([^\]]*)\]\{geometry\}")
 _RE_TITLE = re.compile(r"\\title\{(.+)\}")
 _RE_AUTHOR = re.compile(r"\\author\{(.+)\}")
@@ -136,7 +136,7 @@ def _parse_preamble(text: str) -> tuple[Metadata, Layout]:
         # Document class
         m = _RE_DOCUMENTCLASS.match(line)
         if m:
-            opts, cls = m.group(1), m.group(2)
+            opts, cls = m.group(1) or "", m.group(2)
             try:
                 layout.document_class = DocumentClass(cls.lower())
             except ValueError:
@@ -355,11 +355,11 @@ def _parse_list_env(lines: list[str], ordered: bool) -> ItemList:
 # --- Body parsing ---
 
 
-def _parse_body(text: str) -> tuple[list, dict[str, bool]]:
+def _parse_body(text: str) -> tuple[list, dict[str, bool | str]]:
     """Parse document body into blocks. Returns (blocks, layout_flags)."""
     root: list = []
     section_stack: list[tuple[int, list]] = []
-    layout_flags: dict[str, bool] = {}
+    layout_flags: dict[str, bool | str] = {}
 
     def current_container() -> list:
         return section_stack[-1][1] if section_stack else root
@@ -410,7 +410,7 @@ def _parse_body(text: str) -> tuple[list, dict[str, bool]]:
                     break
                 abstract_lines.append(lines[i])
                 i += 1
-            layout_flags["_abstract"] = "\n".join(abstract_lines)  # type: ignore[assignment]
+            layout_flags["_abstract"] = "\n".join(abstract_lines)
             i += 1
             continue
 

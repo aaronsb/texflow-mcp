@@ -95,6 +95,11 @@ class TestPreambleParsing:
         assert doc.layout.margins.top == "2in"
         assert doc.layout.margins.bottom == "1.5in"
 
+    def test_documentclass_no_options(self):
+        tex = "\\documentclass{report}\n\\begin{document}\n\\end{document}"
+        doc = ingest_tex(tex)
+        assert doc.layout.document_class.value == "report"
+
     def test_twocolumn(self):
         tex = "\\documentclass[12pt,a4paper,twocolumn]{article}\n\\begin{document}\n\\end{document}"
         doc = ingest_tex(tex)
