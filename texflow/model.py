@@ -83,8 +83,14 @@ class BibEntry:
 
 @dataclass
 class Bibliography:
-    style: str = "plain"
+    style: str = "authoryear"
     entries: list[BibEntry] = field(default_factory=list)
+
+    def find_entry(self, key: str) -> BibEntry | None:
+        for entry in self.entries:
+            if entry.key == key:
+                return entry
+        return None
 
 
 # --- Content blocks ---
@@ -255,6 +261,9 @@ class Document:
         for block in self._walk_blocks(self.content):
             if isinstance(block, Paragraph) and "](http" in block.text:
                 pkgs.add("hyperref")
+
+        if self.bibliography and self.bibliography.entries:
+            pkgs.add("biblatex")
 
         return pkgs
 

@@ -892,3 +892,56 @@ class TestPreviewFormatting:
         edit_tool("insert", content="Hello.")
         result = render_tool("preview")
         assert "data:image/png;base64," not in result
+
+
+# --- Bibliography tool tests ---
+
+
+class TestBibActions:
+    def setup_method(self):
+        from texflow.tools import state as st
+        st._current_doc = None
+        document_tool("create", title="Bib Test")
+
+    def test_bib_add(self):
+        result = document_tool("bib_add", source='@article{smith2024, author = {John Smith}, title = {A Paper}, year = {2024}}')
+        assert "smith2024" in result
+        assert "1 total entries" in result
+
+    def test_bib_add_duplicate(self):
+        document_tool("bib_add", source='@article{k, title = {T}}')
+        result = document_tool("bib_add", source='@article{k, title = {T2}}')
+        assert "already exists" in result
+
+    def test_bib_remove(self):
+        document_tool("bib_add", source='@article{k, title = {T}}')
+        result = document_tool("bib_remove", source="k")
+        assert "Removed" in result
+        assert "0 entries" in result
+
+    def test_bib_remove_not_found(self):
+        result = document_tool("bib_remove", source="nonexistent")
+        assert "No bibliography entries" in result
+
+    def test_bib_list_empty(self):
+        result = document_tool("bib_list")
+        assert "No bibliography entries" in result
+
+    def test_bib_list_with_entries(self):
+        document_tool("bib_add", source='@article{smith2024, author = {John Smith}, title = {A Paper}, year = {2024}}')
+        result = document_tool("bib_list")
+        assert "smith2024" in result
+        assert "John Smith" in result
+        assert "A Paper" in result
+
+    def test_bib_style(self):
+        result = document_tool("bib_style", source="numeric")
+        assert "numeric" in result
+
+    def test_bib_style_invalid(self):
+        result = document_tool("bib_style", source="nonexistent")
+        assert "Unknown style" in result
+
+    def test_bib_add_no_source(self):
+        result = document_tool("bib_add")
+        assert "Error" in result

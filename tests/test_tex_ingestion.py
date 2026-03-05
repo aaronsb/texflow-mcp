@@ -471,3 +471,108 @@ class TestRoundTrip:
         assert isinstance(results.content[0], Table)
         assert isinstance(results.content[1], ItemList)
         assert len(results.content[1].items) == 2
+
+
+# --- Citation and bibliography tests ---
+
+from texflow.tex_ingestion import parse_bib_file, _latex_inline_to_markdown
+
+
+class TestCitationReversal:
+    def test_cite_to_bracket(self):
+        result = _latex_inline_to_markdown("See \\cite{smith2024}.")
+        assert result == "See [@smith2024]."
+
+    def test_cite_with_option(self):
+        result = _latex_inline_to_markdown("See \\cite[p. 42]{smith2024}.")
+        assert result == "See [@smith2024, p. 42]."
+
+    def test_textcite_to_bracket(self):
+        result = _latex_inline_to_markdown("\\textcite{jones2023} argues")
+        assert result == "[@jones2023] argues"
+
+    def test_parencite_to_bracket(self):
+        result = _latex_inline_to_markdown("results \\parencite{doe2022}")
+        assert result == "results [@doe2022]"
+
+    def test_multiple_cites(self):
+        result = _latex_inline_to_markdown("\\cite{a} and \\cite{b}")
+        assert "[@a]" in result
+        assert "[@b]" in result
+
+
+class TestBibFileParsing:
+    def test_single_entry(self):
+        bib = """@article{smith2024,
+  author = {John Smith},
+  title = {A Great Paper},
+  year = {2024}
+}"""
+        entries = parse_bib_file(bib)
+        assert len(entries) == 1
+        assert entries[0].key == "smith2024"
+        assert entries[0].entry_type == "article"
+        assert entries[0].fields["author"] == "John Smith"
+        assert entries[0].fields["title"] == "A Great Paper"
+        assert entries[0].fields["year"] == "2024"
+
+    def test_multiple_entries(self):
+        bib = """@book{a,
+  title = {Book A}
+}
+
+@inproceedings{b,
+  title = {Paper B},
+  year = {2023}
+}"""
+        entries = parse_bib_file(bib)
+        assert len(entries) == 2
+        assert entries[0].key == "a"
+        assert entries[1].key == "b"
+        assert entries[1].entry_type == "inproceedings"
+
+    def test_empty_bib(self):
+        entries = parse_bib_file("")
+        assert len(entries) == 0
+
+    def test_nested_braces(self):
+        bib = "@article{rna, title = {The {RNA} Polymerase}, author = {Jane {van der Berg}}}"
+        entries = parse_bib_file(bib)
+        assert len(entries) == 1
+        assert entries[0].fields["title"] == "The {RNA} Polymerase"
+        assert entries[0].fields["author"] == "Jane {van der Berg}"
+
+
+class TestCitationRoundTrip:
+    def test_serialize_then_ingest(self):
+        from texflow.model import BibEntry, Bibliography
+        from texflow.serializer import serialize
+
+        original = Document(
+            metadata=Metadata(title="Cite Test"),
+            content=[Paragraph(text="See [@smith2024, p. 5].")],
+            bibliography=Bibliography(
+                style="numeric",
+                entries=[BibEntry(key="smith2024", entry_type="article", fields={"title": "T"})],
+            ),
+        )
+        tex = serialize(original)
+        restored = ingest_tex(tex)
+        p = restored.content[0]
+        assert isinstance(p, Paragraph)
+        assert "[@smith2024, p. 5]" in p.text
+
+
+class TestBiblatexPreambleIngestion:
+    def test_biblatex_style_detected(self):
+        tex = "\\documentclass{article}\n\\usepackage[style=numeric,backend=biber]{biblatex}\n\\begin{document}\n\\end{document}"
+        doc = ingest_tex(tex)
+        assert doc.bibliography is not None
+        assert doc.bibliography.style == "numeric"
+
+    def test_printbibliography_skipped(self):
+        tex = "\\begin{document}\nSome text.\n\\printbibliography\n\\end{document}"
+        doc = ingest_tex(tex)
+        # printbibliography should not appear as content
+        assert len(doc.content) == 1
+        assert isinstance(doc.content[0], Paragraph)

@@ -65,6 +65,10 @@ def document(
     - read: Read content of a specific section as prose text.
     - update: Update document metadata (title, author, date, abstract).
     - reset: Clear the current document and saved state. Next create/ingest starts fresh.
+    - bib_add: Add a bibliography entry (provide BibTeX-format entry as source).
+    - bib_remove: Remove a bibliography entry by key (provide key as source).
+    - bib_list: List all bibliography entries.
+    - bib_style: Set bibliography style (provide style name as source, e.g. "authoryear", "numeric").
     """
     return _with_hints(document_tool(
         action, document_class, title, author, date, abstract, source, section,

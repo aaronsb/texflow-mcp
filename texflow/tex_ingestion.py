@@ -47,6 +47,14 @@ _RE_HREF = re.compile(r"\\href\{([^}]+)\}\{([^}]+)\}")
 _RE_TEXTBF = re.compile(r"\\textbf\{([^}]+)\}")
 _RE_TEXTIT = re.compile(r"\\textit\{([^}]+)\}")
 _RE_TEXTTT = re.compile(r"\\texttt\{([^}]+)\}")
+_RE_CITE = re.compile(r"\\cite\{([^}]+)\}")
+_RE_CITE_OPT = re.compile(r"\\cite\[([^\]]*)\]\{([^}]+)\}")
+_RE_TEXTCITE = re.compile(r"\\textcite\{([^}]+)\}")
+_RE_PARENCITE = re.compile(r"\\parencite\{([^}]+)\}")
+
+# Preamble: biblatex detection
+_RE_BIBLATEX = re.compile(r"\\usepackage\[([^\]]*)\]\{biblatex\}")
+_RE_ADDBIBRESOURCE = re.compile(r"\\addbibresource\{([^}]+)\}")
 
 _SECTION_LEVELS = {"section": 1, "subsection": 2, "subsubsection": 3}
 
@@ -61,6 +69,7 @@ _LAYOUT_LINES = {
     "\\tableofcontents": "toc",
     "\\listoffigures": "lof",
     "\\listoftables": "lot",
+    "\\printbibliography": "_has_bibliography",
 }
 
 _UNESCAPE_MAP = [
@@ -98,6 +107,11 @@ def _latex_inline_to_markdown(text: str) -> str:
     text = _RE_TEXTBF.sub(r"**\1**", text)
     text = _RE_TEXTIT.sub(r"*\1*", text)
     text = _RE_TEXTTT.sub(r"`\1`", text)
+    # Citations: \cite[note]{key} → [@key, note], \cite{key} → [@key]
+    text = _RE_CITE_OPT.sub(r"[@\2, \1]", text)
+    text = _RE_TEXTCITE.sub(r"[@\1]", text)
+    text = _RE_PARENCITE.sub(r"[@\1]", text)
+    text = _RE_CITE.sub(r"[@\1]", text)
     return text
 
 
@@ -125,10 +139,14 @@ def _parse_margins(opts: str) -> Margins:
     return margins
 
 
-def _parse_preamble(text: str) -> tuple[Metadata, Layout]:
-    """Extract metadata and layout from LaTeX preamble."""
+def _parse_preamble(text: str) -> tuple[Metadata, Layout, str]:
+    """Extract metadata, layout, and bibliography style from LaTeX preamble.
+
+    Returns (metadata, layout, bib_style). bib_style is empty if no biblatex found.
+    """
     meta = Metadata()
     layout = Layout()
+    bib_style = ""
 
     for line in text.splitlines():
         line = line.strip()
@@ -184,7 +202,16 @@ def _parse_preamble(text: str) -> tuple[Metadata, Layout]:
                 except ValueError:
                     pass
 
-    return meta, layout
+        # Biblatex
+        m = _RE_BIBLATEX.match(line)
+        if m:
+            opts = m.group(1)
+            for part in opts.split(","):
+                part = part.strip()
+                if part.startswith("style="):
+                    bib_style = part[6:]
+
+    return meta, layout, bib_style
 
 
 # --- Environment parsers ---
@@ -552,7 +579,7 @@ def ingest_tex(source: str) -> Document:
         body_text = body_text[:end_idx]
 
     # Parse phases
-    metadata, layout = _parse_preamble(preamble_text)
+    metadata, layout, bib_style = _parse_preamble(preamble_text)
     content, layout_flags = _parse_body(body_text)
 
     # Apply layout flags
@@ -565,4 +592,53 @@ def ingest_tex(source: str) -> Document:
     if "_abstract" in layout_flags:
         metadata.abstract = _unescape_latex(str(layout_flags["_abstract"]))
 
-    return Document(metadata=metadata, layout=layout, content=content)
+    doc = Document(metadata=metadata, layout=layout, content=content)
+
+    # Bibliography style from preamble
+    if bib_style:
+        from .model import Bibliography
+        doc.bibliography = Bibliography(style=bib_style)
+
+    return doc
+
+
+# --- BibTeX file parsing ---
+
+_RE_BIB_ENTRY = re.compile(
+    r"@(\w+)\s*\{\s*([\w:./-]+)\s*,\s*(.*?)\s*\}(?=\s*@|\s*\Z)",
+    re.DOTALL,
+)
+# Handles one level of nested braces: title = {The {RNA} Polymerase}
+_RE_BIB_FIELD = re.compile(r"(\w+)\s*=\s*\{((?:[^{}]|\{[^{}]*\})*)\}")
+
+
+def parse_bib_entry(text: str):
+    """Parse a single BibTeX entry string into a BibEntry, or None."""
+    from .model import BibEntry
+
+    m = _RE_BIB_ENTRY.search(text)
+    if not m:
+        return None
+    entry_type = m.group(1).lower()
+    key = m.group(2)
+    body = m.group(3)
+    fields: dict[str, str] = {}
+    for fm in _RE_BIB_FIELD.finditer(body):
+        fields[fm.group(1).lower()] = fm.group(2)
+    return BibEntry(key=key, entry_type=entry_type, fields=fields)
+
+
+def parse_bib_file(text: str) -> list:
+    """Parse a .bib file into a list of BibEntry objects."""
+    from .model import BibEntry
+
+    entries: list[BibEntry] = []
+    for m in _RE_BIB_ENTRY.finditer(text):
+        entry_type = m.group(1).lower()
+        key = m.group(2)
+        body = m.group(3)
+        fields: dict[str, str] = {}
+        for fm in _RE_BIB_FIELD.finditer(body):
+            fields[fm.group(1).lower()] = fm.group(2)
+        entries.append(BibEntry(key=key, entry_type=entry_type, fields=fields))
+    return entries

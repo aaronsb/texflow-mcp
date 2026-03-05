@@ -15,6 +15,8 @@ from ..formatters import (
 )
 from ..ingestion import ingest_markdown, ingest_raw, parse_markdown_blocks
 from ..model import (
+    BibEntry,
+    Bibliography,
     Document,
     DocumentClass,
     Layout,
@@ -57,6 +59,10 @@ def document_tool(
     - read: Read content of a specific section as prose text.
     - update: Update document metadata (title, author, date, abstract).
     - reset: Clear the current document and saved state. Next create/ingest starts fresh.
+    - bib_add: Add a bibliography entry (provide BibTeX-format entry as source).
+    - bib_remove: Remove a bibliography entry by key (provide key as source).
+    - bib_list: List all bibliography entries.
+    - bib_style: Set bibliography style (provide style name as source, e.g. "authoryear", "numeric").
     """
     match action:
         case "create":
@@ -71,8 +77,16 @@ def document_tool(
             return _update(title, author, date, abstract)
         case "reset":
             return _reset()
+        case "bib_add":
+            return _bib_add(source)
+        case "bib_remove":
+            return _bib_remove(source)
+        case "bib_list":
+            return _bib_list()
+        case "bib_style":
+            return _bib_style(source)
         case _:
-            return f"Unknown action: {action}. Valid actions: create, ingest, outline, read, update, reset"
+            return f"Unknown action: {action}. Valid actions: create, ingest, outline, read, update, reset, bib_add, bib_remove, bib_list, bib_style"
 
 
 def _create(
@@ -193,8 +207,16 @@ def _ingest(source: str | None, section: str | None = None) -> str:
         if source_path.exists() and source_path.is_file():
             text = source_path.read_text(encoding="utf-8")
             if source_path.suffix.lower() == ".tex":
-                from ..tex_ingestion import ingest_tex
+                from ..tex_ingestion import ingest_tex, parse_bib_file
                 doc = ingest_tex(text)
+                # Load sibling .bib file if present
+                bib_path = source_path.parent / "references.bib"
+                if bib_path.exists():
+                    entries = parse_bib_file(bib_path.read_text(encoding="utf-8"))
+                    if entries:
+                        if doc.bibliography is None:
+                            doc.bibliography = Bibliography()
+                        doc.bibliography.entries = entries
             else:
                 doc = ingest_markdown(text)
             if existing_layout is not None and not source_path.suffix.lower() == ".tex":
@@ -279,5 +301,82 @@ def _read(section_path: str | None) -> str:
         return f"Section not found: {section_path}\nAvailable sections: {', '.join(available)}"
 
     return format_blocks_as_prose(sec.content)
+
+
+# --- Bibliography actions ---
+
+_VALID_BIB_STYLES = {
+    "authoryear", "numeric", "alphabetic", "authortitle",
+    "verbose", "reading", "draft", "apa", "ieee", "nature",
+    "science", "chicago-authordate", "mla",
+}
+
+
+def _bib_add(source: str | None) -> str:
+    if not source:
+        return "Error: 'source' is required. Provide a BibTeX entry, e.g.:\n@article{key, author={...}, title={...}, year={2024}}"
+    doc = require_doc()
+    from ..tex_ingestion import parse_bib_entry
+    entry = parse_bib_entry(source)
+    if not entry:
+        return "Error: Could not parse BibTeX entry. Expected format:\n@type{key, field = {value}, ...}"
+    if doc.bibliography is None:
+        doc.bibliography = Bibliography()
+    existing = doc.bibliography.find_entry(entry.key)
+    if existing:
+        return f"Error: Entry with key '{entry.key}' already exists. Remove it first or use a different key."
+    doc.bibliography.entries.append(entry)
+    auto_save()
+    fields_summary = ", ".join(f"{k}={v[:30]}..." if len(v) > 30 else f"{k}={v}" for k, v in entry.fields.items())
+    return f"Added @{entry.entry_type}{{{entry.key}}} ({fields_summary}). {len(doc.bibliography.entries)} total entries."
+
+
+def _bib_remove(source: str | None) -> str:
+    if not source:
+        return "Error: 'source' is required. Provide the citation key to remove."
+    doc = require_doc()
+    if not doc.bibliography or not doc.bibliography.entries:
+        return "No bibliography entries to remove."
+    key = source.strip()
+    before = len(doc.bibliography.entries)
+    doc.bibliography.entries = [e for e in doc.bibliography.entries if e.key != key]
+    if len(doc.bibliography.entries) == before:
+        return f"Error: No entry with key '{key}' found."
+    auto_save()
+    return f"Removed entry '{key}'. {len(doc.bibliography.entries)} entries remaining."
+
+
+def _bib_list() -> str:
+    doc = require_doc()
+    if not doc.bibliography or not doc.bibliography.entries:
+        return "No bibliography entries. Use document(action='bib_add', source='@article{key, ...}') to add entries."
+    lines = [f"Bibliography ({len(doc.bibliography.entries)} entries, style: {doc.bibliography.style}):", ""]
+    for entry in doc.bibliography.entries:
+        title = entry.fields.get("title", "")
+        author = entry.fields.get("author", "")
+        year = entry.fields.get("year", "")
+        summary = f"  @{entry.entry_type}{{{entry.key}}}"
+        if author:
+            summary += f" — {author}"
+        if title:
+            summary += f", \"{title}\""
+        if year:
+            summary += f" ({year})"
+        lines.append(summary)
+    return "\n".join(lines)
+
+
+def _bib_style(source: str | None) -> str:
+    if not source:
+        return f"Error: 'source' is required. Valid styles: {', '.join(sorted(_VALID_BIB_STYLES))}"
+    doc = require_doc()
+    style = source.strip().lower()
+    if style not in _VALID_BIB_STYLES:
+        return f"Unknown style '{style}'. Valid styles: {', '.join(sorted(_VALID_BIB_STYLES))}"
+    if doc.bibliography is None:
+        doc.bibliography = Bibliography()
+    doc.bibliography.style = style
+    auto_save()
+    return f"Bibliography style set to '{style}'."
 
 
