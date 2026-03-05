@@ -192,8 +192,12 @@ def _ingest(source: str | None, section: str | None = None) -> str:
         source_path = Path(source)
         if source_path.exists() and source_path.is_file():
             text = source_path.read_text(encoding="utf-8")
-            doc = ingest_markdown(text)
-            if existing_layout is not None:
+            if source_path.suffix.lower() == ".tex":
+                from ..tex_ingestion import ingest_tex
+                doc = ingest_tex(text)
+            else:
+                doc = ingest_markdown(text)
+            if existing_layout is not None and not source_path.suffix.lower() == ".tex":
                 doc.layout = existing_layout
             doc.save_path = get_output_dir() / "document.texflow.json"
             set_doc(doc)

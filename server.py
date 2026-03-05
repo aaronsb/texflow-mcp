@@ -60,7 +60,7 @@ def document(
 
     Actions:
     - create: Scaffold a new empty document. Optionally set class, title, author.
-    - ingest: Parse markdown text or file path into the document model.
+    - ingest: Parse markdown text, .tex file, or .md file into the document model.
     - outline: Show document structure (sections, block counts).
     - read: Read content of a specific section as prose text.
     - update: Update document metadata (title, author, date, abstract).
