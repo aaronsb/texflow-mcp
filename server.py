@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastmcp import FastMCP
 
+from texflow import __version__
 from texflow.tools.state import set_output_dir
 from texflow.tools.document import document_tool
 from texflow.tools.layout import layout_tool
@@ -19,7 +20,7 @@ from texflow.tools.workflow import state_hint, error_hint, WORKFLOW_MAP
 mcp = FastMCP(
     "texflow",
     instructions=(
-        "TeXFlow is a LaTeX document compiler. "
+        f"TeXFlow v{__version__} — LaTeX document compiler. "
         "Use 'document' to create or ingest content, 'layout' to configure typesetting, "
         "'edit' to manipulate content structurally, 'render' to compile to PDF, "
         "'reference' for LaTeX documentation search, and "
