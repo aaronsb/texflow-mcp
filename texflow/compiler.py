@@ -32,11 +32,34 @@ class CompileError:
     context: str = ""
 
 
-def compile_tex(tex_content: str, output_dir: Path | None = None, filename: str = "document") -> CompileResult:
+def _run_engine(engine: str, filename: str, work_dir: Path) -> tuple[str, CompileError | None]:
+    """Run a single LaTeX engine pass. Returns (stdout, error_or_none)."""
+    try:
+        proc = subprocess.run(
+            [engine, "-interaction=nonstopmode", "-halt-on-error", f"{filename}.tex"],
+            cwd=work_dir,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        return proc.stdout, None
+    except subprocess.TimeoutExpired:
+        return "", CompileError(message="Compilation timed out after 60 seconds")
+    except Exception as e:
+        return "", CompileError(message=f"Compilation failed: {e}")
+
+
+def compile_tex(
+    tex_content: str,
+    output_dir: Path | None = None,
+    filename: str = "document",
+    bib_content: str | None = None,
+) -> CompileResult:
     """Compile a .tex string to PDF using xelatex.
 
-    Runs xelatex twice for TOC/references. Falls back to pdflatex if xelatex
-    is not available. Returns CompileResult with paths and any errors.
+    Runs xelatex → (biber) → xelatex → xelatex for cross-references and
+    bibliography. Falls back to pdflatex if xelatex is not available.
+    Returns CompileResult with paths and any errors.
     """
     if not shutil.which("xelatex") and not shutil.which("pdflatex"):
         # No LaTeX engine available — write .tex only
@@ -59,26 +82,39 @@ def compile_tex(tex_content: str, output_dir: Path | None = None, filename: str 
         tex_path = work_dir / f"{filename}.tex"
         tex_path.write_text(tex_content, encoding="utf-8")
 
+        # Write .bib file if provided
+        if bib_content:
+            bib_path = work_dir / "references.bib"
+            bib_path.write_text(bib_content, encoding="utf-8")
+
         errors: list[CompileError] = []
         warnings: list[str] = []
         log_content = ""
 
-        # Run twice for cross-references
-        for pass_num in range(2):
+        # Pass 1: xelatex
+        log_content, err = _run_engine(engine, filename, work_dir)
+        if err:
+            errors.append(err)
+            return CompileResult(success=False, tex_path=tex_path, errors=errors, log=log_content)
+
+        # Pass 2: biber (conditional — only when bib content provided and biber available)
+        if bib_content and shutil.which("biber"):
             try:
-                proc = subprocess.run(
-                    [engine, "-interaction=nonstopmode", "-halt-on-error", f"{filename}.tex"],
+                subprocess.run(
+                    ["biber", filename],
                     cwd=work_dir,
                     capture_output=True,
                     text=True,
                     timeout=60,
                 )
-                log_content = proc.stdout
-            except subprocess.TimeoutExpired:
-                errors.append(CompileError(message="Compilation timed out after 60 seconds"))
-                return CompileResult(success=False, tex_path=tex_path, errors=errors, log=log_content)
-            except Exception as e:
-                errors.append(CompileError(message=f"Compilation failed: {e}"))
+            except (subprocess.TimeoutExpired, Exception) as e:
+                errors.append(CompileError(message=f"Biber failed: {e}"))
+
+        # Pass 3 & 4: xelatex (resolve references and bibliography)
+        for _ in range(2):
+            log_content, err = _run_engine(engine, filename, work_dir)
+            if err:
+                errors.append(err)
                 return CompileResult(success=False, tex_path=tex_path, errors=errors, log=log_content)
 
         # Parse log for errors and warnings
@@ -101,6 +137,10 @@ def compile_tex(tex_content: str, output_dir: Path | None = None, filename: str 
             if pdf_path.exists():
                 final_pdf = output_dir / f"{filename}.pdf"
                 shutil.copy2(pdf_path, final_pdf)
+            # Copy .bib file too
+            bib_src = work_dir / "references.bib"
+            if bib_src.exists():
+                shutil.copy2(bib_src, output_dir / "references.bib")
 
         return CompileResult(
             success=success,

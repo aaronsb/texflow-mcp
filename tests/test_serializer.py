@@ -1,6 +1,8 @@
 """Tests for the LaTeX serializer."""
 
 from texflow.model import (
+    BibEntry,
+    Bibliography,
     CodeBlock,
     Document,
     DocumentClass,
@@ -17,7 +19,7 @@ from texflow.model import (
     Section,
     Table,
 )
-from texflow.serializer import escape_latex, serialize, _convert_inline_markup
+from texflow.serializer import escape_latex, serialize, serialize_bib, _convert_inline_markup
 
 
 # --- escape_latex ---
@@ -406,3 +408,93 @@ def test_serialize_complete_document():
     assert "\\begin{equation}" in tex
     assert "\\begin{table}" in tex
     assert "\\begin{figure}" in tex
+
+
+# --- Bibliography tests ---
+
+
+class TestCitationInlineMarkup:
+    def test_cite_simple(self):
+        result = _convert_inline_markup("See [@smith2024].")
+        assert result == "See \\cite{smith2024}."
+
+    def test_cite_with_note(self):
+        result = _convert_inline_markup("See [@smith2024, p. 42].")
+        assert result == "See \\cite[p. 42]{smith2024}."
+
+    def test_cite_protected_in_escape(self):
+        text = escape_latex("Citations like [@key] are safe.")
+        assert "[@key]" in text  # Not escaped
+
+    def test_multiple_citations(self):
+        result = _convert_inline_markup("See [@a] and [@b].")
+        assert "\\cite{a}" in result
+        assert "\\cite{b}" in result
+
+
+class TestSerializeBib:
+    def test_empty_bib(self):
+        doc = Document()
+        assert serialize_bib(doc) == ""
+
+    def test_single_entry(self):
+        doc = Document(bibliography=Bibliography(entries=[
+            BibEntry(key="smith2024", entry_type="article", fields={
+                "author": "John Smith",
+                "title": "A Great Paper",
+                "year": "2024",
+            }),
+        ]))
+        bib = serialize_bib(doc)
+        assert "@article{smith2024," in bib
+        assert "author = {John Smith}" in bib
+        assert "title = {A Great Paper}" in bib
+        assert "year = {2024}" in bib
+
+    def test_multiple_entries(self):
+        doc = Document(bibliography=Bibliography(entries=[
+            BibEntry(key="a", entry_type="book", fields={"title": "Book A"}),
+            BibEntry(key="b", entry_type="article", fields={"title": "Paper B"}),
+        ]))
+        bib = serialize_bib(doc)
+        assert "@book{a," in bib
+        assert "@article{b," in bib
+
+
+class TestBiblatexPreamble:
+    def test_biblatex_in_preamble(self):
+        doc = Document(
+            bibliography=Bibliography(
+                style="numeric",
+                entries=[BibEntry(key="k", entry_type="article", fields={"title": "T"})],
+            ),
+        )
+        tex = serialize(doc)
+        assert "\\usepackage[style=numeric,backend=biber]{biblatex}" in tex
+        assert "\\addbibresource{references.bib}" in tex
+
+    def test_printbibliography_at_end(self):
+        doc = Document(
+            bibliography=Bibliography(
+                entries=[BibEntry(key="k", entry_type="article", fields={"title": "T"})],
+            ),
+        )
+        tex = serialize(doc)
+        assert "\\printbibliography" in tex
+        assert "\\bibliographystyle" not in tex
+
+    def test_no_biblatex_without_entries(self):
+        doc = Document()
+        tex = serialize(doc)
+        assert "biblatex" not in tex
+        assert "\\printbibliography" not in tex
+
+    def test_citation_in_paragraph(self):
+        doc = Document(
+            content=[Paragraph(text="See [@smith2024].")],
+            bibliography=Bibliography(
+                entries=[BibEntry(key="smith2024", entry_type="article", fields={"title": "T"})],
+            ),
+        )
+        tex = serialize(doc)
+        assert "\\cite{smith2024}" in tex

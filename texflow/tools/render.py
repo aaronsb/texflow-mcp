@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ..compiler import compile_tex, preview_page
 from ..formatters import format_compile_result, format_preview_result
-from ..serializer import serialize
+from ..serializer import serialize, serialize_bib
 from .state import auto_save, get_output_dir, require_doc
 
 
@@ -42,12 +42,13 @@ def _compile(output_path: str | None) -> str:
     global _last_result
     doc = require_doc()
     tex = serialize(doc)
+    bib = serialize_bib(doc) or None
 
     # Pre-compile capability check
     warnings = _check_packages(doc)
 
     out_dir = Path(output_path) if output_path else get_output_dir()
-    result = compile_tex(tex, output_dir=out_dir)
+    result = compile_tex(tex, output_dir=out_dir, bib_content=bib)
     _last_result = result
 
     auto_save()

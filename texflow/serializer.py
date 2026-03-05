@@ -83,6 +83,9 @@ def escape_latex(text: str) -> str:
     # Links: [text](url)
     for m in re.finditer(r"\[([^\]]+)\]\(([^)]+)\)", text):
         protected.append((m.start(), m.end(), m.group()))
+    # Citations: [@key] or [@key, note]
+    for m in re.finditer(r"\[@[^\]]+\]", text):
+        protected.append((m.start(), m.end(), m.group()))
 
     if not protected:
         return _LATEX_SPECIAL.sub(lambda m: _LATEX_ESCAPE_MAP[m.group()], text)
@@ -123,6 +126,9 @@ def _convert_inline_markup(text: str) -> str:
     text = re.sub(r"(?<!\*)\*(?!\*)([^*]+)\*(?!\*)", r"\\textit{\1}", text)
     # Inline code
     text = re.sub(r"`([^`]+)`", r"\\texttt{\1}", text)
+    # Citations: [@key, note] → \cite[note]{key}, [@key] → \cite{key}
+    text = re.sub(r"\[@([\w:./-]+),\s*(.+?)\]", r"\\cite[\2]{\1}", text)
+    text = re.sub(r"\[@([\w:./-]+)\]", r"\\cite{\1}", text)
     return text
 
 
@@ -158,6 +164,11 @@ def _preamble(doc: Document) -> str:
         style_pkgs, style_preamble = resolve_style_stack(layout.styles)
         packages.update(style_pkgs)
 
+    # Biblatex is emitted separately with style option
+    has_bib = "biblatex" in packages
+    if has_bib:
+        packages.discard("biblatex")
+
     # Sort for deterministic output
     for pkg in sorted(packages):
         options = _package_options(pkg, doc)
@@ -165,6 +176,12 @@ def _preamble(doc: Document) -> str:
             lines.append(f"\\usepackage[{options}]{{{pkg}}}")
         else:
             lines.append(f"\\usepackage{{{pkg}}}")
+
+    # Biblatex after other packages
+    if has_bib and doc.bibliography:
+        bib_style = doc.bibliography.style or "authoryear"
+        lines.append(f"\\usepackage[style={bib_style},backend=biber]{{biblatex}}")
+        lines.append("\\addbibresource{references.bib}")
 
     lines.append("")
 
@@ -305,8 +322,7 @@ def _end_document(doc: Document) -> str:
     lines: list[str] = []
 
     if doc.bibliography and doc.bibliography.entries:
-        lines.append(f"\\bibliographystyle{{{doc.bibliography.style}}}")
-        lines.append("\\bibliography{references}")
+        lines.append("\\printbibliography")
         lines.append("")
 
     lines.append("\\end{document}")
@@ -488,3 +504,16 @@ def serialize(doc: Document) -> str:
         _end_document(doc),
     ]
     return "\n".join(parts)
+
+
+def serialize_bib(doc: Document) -> str:
+    """Serialize bibliography entries to BibTeX .bib format."""
+    if not doc.bibliography or not doc.bibliography.entries:
+        return ""
+    parts = []
+    for entry in doc.bibliography.entries:
+        field_lines = ",\n".join(
+            f"  {k} = {{{v}}}" for k, v in entry.fields.items()
+        )
+        parts.append(f"@{entry.entry_type}{{{entry.key},\n{field_lines}\n}}")
+    return "\n\n".join(parts) + "\n"
