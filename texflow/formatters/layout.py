@@ -31,6 +31,8 @@ def format_layout(lo: Layout) -> str:
     lines.append(f"  TOC: {lo.toc}  LOF: {lo.lof}  LOT: {lo.lot}")
     if lo.line_spacing:
         lines.append(f"  Line spacing: {lo.line_spacing}")
+    if lo.section_break:
+        lines.append(f"  Section break: {lo.section_break}")
     if lo.styles:
         lines.append(f"  Styles: {', '.join(lo.styles)}")
     return "\n".join(lines)

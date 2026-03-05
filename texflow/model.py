@@ -57,6 +57,7 @@ class Layout:
     lof: bool = False
     lot: bool = False
     line_spacing: float | None = None
+    section_break: str = ""  # "before" → \clearpage before level-1 sections
     styles: list[str] = field(default_factory=list)
 
 
@@ -101,6 +102,7 @@ class Section:
     title: str
     level: int  # 1=section, 2=subsection, 3=subsubsection
     label: str = ""
+    page_break: str = ""  # "before", "after", "both", or "" (none)
     content: list[Block] = field(default_factory=list)
 
 

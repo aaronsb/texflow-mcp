@@ -401,6 +401,7 @@ def _parse_body(text: str) -> tuple[list, dict[str, bool | str]]:
             para_lines = []
 
     para_lines: list[str] = []
+    pending_break = ""  # Track \clearpage/\newpage before sections
     lines = text.splitlines()
     i = 0
 
@@ -414,15 +415,18 @@ def _parse_body(text: str) -> tuple[list, dict[str, bool | str]]:
             i += 1
             continue
 
-        # Skip known layout/skip lines
+        # Skip known layout/skip lines (track clearpage for section breaks)
         if stripped in _SKIP_LINES:
             flush_paragraph()
+            if stripped in ("\\clearpage", "\\newpage", "\\cleardoublepage"):
+                pending_break = "before"
             i += 1
             continue
 
         # Layout flag lines
         if stripped in _LAYOUT_LINES:
             flush_paragraph()
+            pending_break = ""
             layout_flags[_LAYOUT_LINES[stripped]] = True
             i += 1
             continue
@@ -461,7 +465,8 @@ def _parse_body(text: str) -> tuple[list, dict[str, bool | str]]:
                     label = lm.group(1)
                     i += 1
 
-            section = Section(title=title, level=level, label=label)
+            section = Section(title=title, level=level, label=label, page_break=pending_break)
+            pending_break = ""
             current_container().append(section)
             section_stack.append((level, section.content))
             i += 1
@@ -487,6 +492,7 @@ def _parse_body(text: str) -> tuple[list, dict[str, bool | str]]:
         m_env = _RE_BEGIN_ENV.match(stripped)
         if m_env:
             flush_paragraph()
+            pending_break = ""
             env_name = m_env.group(1)
             env_opts = m_env.group(2) or ""
 

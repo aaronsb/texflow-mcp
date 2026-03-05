@@ -30,11 +30,18 @@ def layout_tool(
     lof: bool | None = None,
     lot: bool | None = None,
     line_spacing: float | None = None,
+    section_break: str | None = None,
     style: str | list[str] | None = None,
 ) -> str:
     """Configure document typesetting and layout.
 
     Only provided parameters are changed; others are left as-is.
+
+    section_break: Controls page breaks before level-1 sections.
+      "before" → \\clearpage before each \\section.
+      "" → no automatic breaks (default). Individual sections can
+      still override via edit(page_break="before").
+
     Returns the current full layout configuration after changes.
     """
     clear_confirmation()
@@ -123,6 +130,13 @@ def layout_tool(
     if line_spacing is not None:
         lo.line_spacing = line_spacing
         changes.append(f"line_spacing={line_spacing}")
+
+    if section_break is not None:
+        valid_breaks = {"", "before", "after", "both"}
+        if section_break not in valid_breaks:
+            return f"Error: section_break must be one of: {', '.join(repr(v) for v in sorted(valid_breaks))}"
+        lo.section_break = section_break
+        changes.append(f"section_break={section_break!r}" if section_break else "section_break cleared")
 
     if style is not None:
         from ..styles import get_style

@@ -96,18 +96,22 @@ def layout(
     lof: bool | None = None,
     lot: bool | None = None,
     line_spacing: float | None = None,
+    section_break: str | None = None,
     style: str | list[str] | None = None,
 ) -> str:
     """Configure document typesetting and layout.
 
     Only provided parameters are changed; others are left as-is.
-    Returns the current full layout configuration after changes.
+
+    section_break: Page break before level-1 sections. "before" inserts
+    \\clearpage before each \\section. Works in any column mode. Individual
+    sections can override via edit(page_break="before").
     """
     return _with_hints(layout_tool(
         columns, font, font_sans, font_mono, font_size, paper, margins,
         header_left, header_center, header_right,
         footer_left, footer_center, footer_right,
-        toc, lof, lot, line_spacing, style,
+        toc, lof, lot, line_spacing, section_break, style,
     ))
 
 
@@ -132,6 +136,7 @@ def edit(
     template: str | None = None,
     lines: list[int] | None = None,
     lint: bool = True,
+    page_break: str | None = None,
 ) -> str:
     """Manipulate document content structurally.
 
@@ -145,12 +150,14 @@ def edit(
 
     Sections are addressed by title path (e.g., 'Methods/Data Collection').
     Blocks within a section are addressed by 0-based index.
-    Use document(action='outline') to see current structure and indices.
+
+    page_break: For sections — "before", "after", "both", or "" to clear.
+    Emits \\clearpage before/after the section.
     """
     return _with_hints(edit_tool(
         action, block_type, section, position, content, title, level,
         language, path, caption, headers, rows, target_section, target_position,
-        template, lines, lint,
+        template, lines, lint, page_break,
     ))
 
 

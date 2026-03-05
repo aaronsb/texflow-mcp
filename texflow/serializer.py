@@ -311,7 +311,7 @@ def _body(doc: Document) -> str:
         lines.append("")
 
     for block in doc.content:
-        lines.append(_serialize_block(block))
+        lines.append(_serialize_block(block, doc))
         lines.append("")
 
     if use_multicol:
@@ -337,10 +337,10 @@ def _end_document(doc: Document) -> str:
 _SECTION_COMMANDS = {1: "section", 2: "subsection", 3: "subsubsection"}
 
 
-def _serialize_block(block: Block) -> str:
+def _serialize_block(block: Block, doc: Document | None = None) -> str:
     match block:
         case Section():
-            return _serialize_section(block)
+            return _serialize_section(block, doc)
         case Paragraph():
             return _serialize_paragraph(block)
         case Figure():
@@ -359,15 +359,30 @@ def _serialize_block(block: Block) -> str:
             return f"% Unknown block type: {type(block).__name__}"
 
 
-def _serialize_section(sec: Section) -> str:
+def _serialize_section(sec: Section, doc: Document | None = None) -> str:
+    lines: list[str] = []
+
+    # Page break before section ("none" explicitly opts out of layout default)
+    break_mode = sec.page_break
+    if break_mode == "none":
+        break_mode = ""
+    elif not break_mode and doc and doc.layout.section_break and sec.level == 1:
+        break_mode = doc.layout.section_break
+    if break_mode in ("before", "both"):
+        lines.append("\\clearpage")
+
     cmd = _SECTION_COMMANDS.get(sec.level, "subsubsection")
-    lines = [f"\\{cmd}{{{escape_latex(sec.title)}}}"]
+    lines.append(f"\\{cmd}{{{escape_latex(sec.title)}}}")
     if sec.label:
         lines.append(f"\\label{{{sec.label}}}")
     lines.append("")
     for block in sec.content:
-        lines.append(_serialize_block(block))
+        lines.append(_serialize_block(block, doc))
         lines.append("")
+
+    if break_mode in ("after", "both"):
+        lines.append("\\clearpage")
+
     return "\n".join(lines)
 
 

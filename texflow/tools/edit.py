@@ -35,6 +35,7 @@ def edit_tool(
     template: str | None = None,
     lines: list[int] | None = None,
     lint: bool = True,
+    page_break: str | None = None,
 ) -> str:
     """Manipulate document content structurally.
 
@@ -49,12 +50,17 @@ def edit_tool(
     Sections are addressed by title path (e.g., 'Methods/Data Collection').
     Blocks within a section are addressed by 0-based index.
     Use document(action='outline') to see current structure and indices.
+
+    page_break: For sections — "before", "after", "both", "none", or "".
+      Emits \\clearpage before/after the section. Works in any column mode.
+      "none" explicitly opts out of the layout default.
+      For a global default, use layout(section_break="before") instead.
     """
     clear_confirmation()
     match action:
         case "insert":
             return _insert(block_type, section, position, content, title, level,
-                           language, path, caption, headers, rows, template)
+                           language, path, caption, headers, rows, template, page_break)
         case "replace":
             return _replace(section, position, block_type, content, title, level,
                             language, path, caption, headers, rows)
@@ -82,6 +88,7 @@ def _build_block(
     headers: list[str] | None = None,
     rows: list[list[str]] | None = None,
     template: str | None = None,
+    page_break: str | None = None,
 ) -> Block | str:
     """Build a Block from parameters. Returns error string on failure."""
     if not block_type:
@@ -103,7 +110,7 @@ def _build_block(
         case "section":
             if not title:
                 return "Error: section requires 'title'"
-            return Section(title=title, level=level or 1)
+            return Section(title=title, level=level or 1, page_break=page_break or "")
         case "paragraph":
             if not content:
                 return "Error: paragraph requires 'content'"
@@ -161,8 +168,8 @@ def _get_container(section_path: str | None) -> tuple[list[Block], str]:
 
 
 def _insert(block_type, section, position, content, title, level,
-            language, path, caption, headers, rows, template=None) -> str:
-    block = _build_block(block_type, content, title, level, language, path, caption, headers, rows, template)
+            language, path, caption, headers, rows, template=None, page_break=None) -> str:
+    block = _build_block(block_type, content, title, level, language, path, caption, headers, rows, template, page_break)
     if isinstance(block, str):
         return block  # Error message
 

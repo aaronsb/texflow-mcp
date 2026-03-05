@@ -513,3 +513,81 @@ class TestBiblatexPreamble:
         )
         tex = serialize(doc)
         assert "\\cite{smith2024}" in tex
+
+
+# --- Section page break tests ---
+
+
+class TestSectionPageBreak:
+    def test_page_break_before(self):
+        doc = Document(content=[
+            Section(title="Intro", level=1),
+            Section(title="Appendix", level=1, page_break="before"),
+        ])
+        tex = serialize(doc)
+        assert "\\clearpage\n\\section{Appendix}" in tex
+        assert "\\clearpage" not in tex.split("\\section{Intro}")[0].split("\\begin{document}")[1]
+
+    def test_page_break_after(self):
+        doc = Document(content=[
+            Section(title="Intro", level=1, page_break="after"),
+        ])
+        tex = serialize(doc)
+        idx_section = tex.index("\\section{Intro}")
+        idx_clear = tex.index("\\clearpage", idx_section)
+        assert idx_clear > idx_section
+
+    def test_page_break_both(self):
+        doc = Document(content=[
+            Section(title="Mid", level=1, page_break="both"),
+        ])
+        tex = serialize(doc)
+        assert tex.count("\\clearpage") == 2
+
+    def test_no_page_break_default(self):
+        doc = Document(content=[
+            Section(title="Intro", level=1),
+        ])
+        tex = serialize(doc)
+        assert "\\clearpage" not in tex.split("\\begin{document}")[1].split("\\end{document}")[0]
+
+    def test_layout_section_break_applies_to_level1(self):
+        doc = Document(
+            layout=Layout(section_break="before"),
+            content=[
+                Section(title="One", level=1),
+                Section(title="Two", level=1),
+            ],
+        )
+        tex = serialize(doc)
+        body = tex.split("\\begin{document}")[1]
+        assert "\\clearpage\n\\section{One}" in body
+        assert "\\clearpage\n\\section{Two}" in body
+
+    def test_layout_section_break_skips_level2(self):
+        doc = Document(
+            layout=Layout(section_break="before"),
+            content=[
+                Section(title="Top", level=1, content=[
+                    Section(title="Sub", level=2),
+                ]),
+            ],
+        )
+        tex = serialize(doc)
+        # clearpage before \section{Top} but NOT before \subsection{Sub}
+        assert "\\clearpage\n\\section{Top}" in tex
+        sub_idx = tex.index("\\subsection{Sub}")
+        before_sub = tex[sub_idx - 20:sub_idx]
+        assert "\\clearpage" not in before_sub
+
+    def test_per_section_none_overrides_layout(self):
+        """page_break='none' explicitly opts out of layout default."""
+        doc = Document(
+            layout=Layout(section_break="before"),
+            content=[
+                Section(title="No Break", level=1, page_break="none"),
+            ],
+        )
+        tex = serialize(doc)
+        body = tex.split("\\begin{document}")[1].split("\\end{document}")[0]
+        assert "\\clearpage" not in body

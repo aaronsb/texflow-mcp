@@ -606,3 +606,23 @@ class TestBiblatexPreambleIngestion:
         # printbibliography should not appear as content
         assert len(doc.content) == 1
         assert isinstance(doc.content[0], Paragraph)
+
+
+class TestSectionPageBreakIngestion:
+    def test_clearpage_before_section(self):
+        tex = "\\begin{document}\n\\section{Intro}\nHello.\n\\clearpage\n\\section{Appendix}\nStuff.\n\\end{document}"
+        doc = ingest_tex(tex)
+        # Intro has no page_break, Appendix has "before"
+        assert doc.content[0].page_break == ""
+        assert doc.content[1].page_break == "before"
+
+    def test_newpage_before_section(self):
+        tex = "\\begin{document}\n\\newpage\n\\section{Start}\n\\end{document}"
+        doc = ingest_tex(tex)
+        assert doc.content[0].page_break == "before"
+
+    def test_clearpage_not_before_non_section(self):
+        tex = "\\begin{document}\n\\clearpage\nSome text.\n\\end{document}"
+        doc = ingest_tex(tex)
+        # clearpage before a paragraph doesn't set page_break
+        assert isinstance(doc.content[0], Paragraph)
