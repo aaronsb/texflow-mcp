@@ -42,33 +42,34 @@ def _load_font_map() -> dict:
     return _FONT_MAP
 
 
-# TikZ library detection: pattern → library name
-_TIKZ_LIBRARY_PATTERNS: list[tuple[re.Pattern, str]] = [
-    (re.compile(r"Stealth|->|latex'|{Latex\["), "arrows.meta"),
-    (re.compile(r"right\s*=\s*of|left\s*=\s*of|above\s*=\s*of|below\s*=\s*of|node distance"), "positioning"),
-    (re.compile(r"let\s*\\p|\\tikzset"), "calc"),
-    (re.compile(r"diamond|ellipse|trapezium|regular polygon|signal|cylinder|star"), "shapes.geometric"),
-    (re.compile(r"fit=\("), "fit"),
-    (re.compile(r"\\matrix|matrix of nodes"), "matrix"),
-    (re.compile(r"decoration|decorate"), "decorations"),
-    (re.compile(r"rounded corners|chamfered rectangle"), "shapes.misc"),
-]
+# Common TikZ libraries loaded whenever tikzpicture is detected.
+# These cover 95%+ of real diagrams with negligible compile overhead.
+_TIKZ_BASE_LIBRARIES = {
+    "arrows.meta", "positioning", "calc", "shapes.geometric",
+    "shapes.misc", "fit", "backgrounds",
+}
 
 
 def _detect_tikz_libraries(doc: Document) -> set[str]:
-    """Scan RawLatex blocks for tikz features and return needed libraries."""
+    """Scan RawLatex blocks for tikz features and return needed libraries.
+
+    Loads a common base set whenever tikzpicture is found, plus any
+    libraries declared in block preamble fields.
+    """
+    has_tikz = False
     libs: set[str] = set()
     for block in doc._walk_blocks(doc.content):
-        if isinstance(block, RawLatex) and "tikz" in block.tex.lower():
-            for pattern, lib in _TIKZ_LIBRARY_PATTERNS:
-                if pattern.search(block.tex):
-                    libs.add(lib)
-            # Also collect from explicit preamble declarations
+        if isinstance(block, RawLatex):
+            if "tikzpicture" in block.tex:
+                has_tikz = True
+            # Collect from explicit preamble declarations
             for line in block.preamble:
                 m = re.match(r"\\usetikzlibrary\{(.+)\}", line)
                 if m:
                     for lib_name in m.group(1).split(","):
                         libs.add(lib_name.strip())
+    if has_tikz:
+        libs.update(_TIKZ_BASE_LIBRARIES)
     return libs
 
 

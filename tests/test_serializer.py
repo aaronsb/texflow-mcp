@@ -326,7 +326,9 @@ def test_serialize_raw_preamble_lines():
         preamble=["\\usetikzlibrary{arrows.meta,positioning}"],
     )])
     tex = serialize(doc)
-    assert "\\usetikzlibrary{arrows.meta,positioning}" in tex
+    assert "\\usetikzlibrary{" in tex
+    assert "arrows.meta" in tex
+    assert "positioning" in tex
     assert tex.index("\\usetikzlibrary") < tex.index("\\begin{document}")
 
 
