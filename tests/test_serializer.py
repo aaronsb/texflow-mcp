@@ -431,6 +431,21 @@ class TestCitationInlineMarkup:
         assert "\\cite{a}" in result
         assert "\\cite{b}" in result
 
+    def test_literal_cite_not_double_escaped(self):
+        r"""Regression: \cite{key} in text must not become \textbackslash{}cite\{key\}."""
+        text = escape_latex("See \\cite{smith2024} for details.")
+        assert "\\cite{smith2024}" in text
+        assert "textbackslash" not in text
+
+    def test_literal_textcite_not_double_escaped(self):
+        text = escape_latex("\\textcite{jones2023} argues")
+        assert "\\textcite{jones2023}" in text
+        assert "textbackslash" not in text
+
+    def test_literal_cite_with_option_protected(self):
+        text = escape_latex("See \\cite[p. 42]{smith2024}.")
+        assert "\\cite[p. 42]{smith2024}" in text
+
 
 class TestSerializeBib:
     def test_empty_bib(self):

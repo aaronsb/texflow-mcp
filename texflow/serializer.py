@@ -86,6 +86,9 @@ def escape_latex(text: str) -> str:
     # Citations: [@key] or [@key, note]
     for m in re.finditer(r"\[@[^\]]+\]", text):
         protected.append((m.start(), m.end(), m.group()))
+    # Literal LaTeX citation commands (defensive: in case text contains \cite{} directly)
+    for m in re.finditer(r"\\(?:cite|textcite|parencite|autocite|fullcite|nocite)(?:\[[^\]]*\])?\{[^}]+\}", text):
+        protected.append((m.start(), m.end(), m.group()))
 
     if not protected:
         return _LATEX_SPECIAL.sub(lambda m: _LATEX_ESCAPE_MAP[m.group()], text)

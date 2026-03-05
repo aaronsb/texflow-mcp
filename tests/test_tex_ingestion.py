@@ -563,6 +563,36 @@ class TestCitationRoundTrip:
         assert "[@smith2024, p. 5]" in p.text
 
 
+class TestMarkdownCitationPreservation:
+    """Verify [@key] survives markdown ingestion through all mistune paths."""
+
+    def test_plain_paragraph(self):
+        from texflow.ingestion import ingest_markdown
+        doc = ingest_markdown("See [@smith2024] for details.")
+        p = doc.content[0]
+        assert "[@smith2024]" in p.text
+
+    def test_citation_in_bold(self):
+        from texflow.ingestion import ingest_markdown
+        doc = ingest_markdown("**Important [@key]** point.")
+        p = doc.content[0]
+        assert "[@key]" in p.text
+
+    def test_citation_in_list(self):
+        from texflow.ingestion import ingest_markdown
+        doc = ingest_markdown("- First [@a]\n- Second [@b]")
+        from texflow.model import ItemList
+        lst = doc.content[0]
+        assert isinstance(lst, ItemList)
+        assert "[@a]" in lst.items[0].text
+
+    def test_citation_with_link_on_same_line(self):
+        from texflow.ingestion import ingest_markdown
+        doc = ingest_markdown("See [link](http://x.com) and [@key].")
+        p = doc.content[0]
+        assert "[@key]" in p.text
+
+
 class TestBiblatexPreambleIngestion:
     def test_biblatex_style_detected(self):
         tex = "\\documentclass{article}\n\\usepackage[style=numeric,backend=biber]{biblatex}\n\\begin{document}\n\\end{document}"
