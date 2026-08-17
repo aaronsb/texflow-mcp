@@ -1,0 +1,14 @@
+---
+name: Battery Access Math
+description: IEEE Access companion style injecting amsmath, cite, array, textcomp for the battery paper (works around the stale template cache)
+packages: []
+preamble:
+  - \usepackage{amsmath}
+  - \usepackage{amssymb}
+  - \usepackage{cite}
+  - \usepackage{array}
+  - \usepackage{textcomp}
+  - \makeatletter
+  - \def\UrlBreaks{\do\/\do\-}
+  - \makeatother
+---

@@ -484,6 +484,25 @@ class TestRawLatexLint:
         )
         assert lint_raw(tex) == []
 
+    def test_lint_starred_envs_balanced(self):
+        from texflow.tools.edit import lint_raw
+        # \w+ never matched table*/figure* — these produced false
+        # "Extra \end{table*}" rejections (audit finding #2).
+        assert lint_raw("\\begin{table*}\\begin{tabular}{cc}a&b\\\\\\end{tabular}\\end{table*}") == []
+        assert lint_raw("\\begin{figure*}\\includegraphics{a.png}\\end{figure*}") == []
+
+    def test_lint_starred_env_unclosed_still_caught(self):
+        from texflow.tools.edit import lint_raw
+        issues = lint_raw("\\begin{table*}\\end{tabular}\\end{table}")
+        assert any("Unclosed" in i for i in issues)
+
+    def test_lint_verbatim_braces_ignored(self):
+        from texflow.tools.edit import lint_raw
+        # Braces inside verbatim are literal text (URLs, quoted LaTeX),
+        # not unbalanced structure (audit finding #5).
+        tex = "\\begin{verbatim}\\textbf{not real} and {also}\n\\end{verbatim}"
+        assert lint_raw(tex) == []
+
 
 # --- Render tool ---
 

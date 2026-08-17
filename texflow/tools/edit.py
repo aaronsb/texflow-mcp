@@ -474,7 +474,7 @@ def _replace_raw(
     if lines:
         # Line-level edit: replace specific line range
         if len(lines) != 2 or lines[0] < 1 or lines[1] < lines[0]:
-            return "Error: 'lines' must be [start, end] with 1-based line numbers, start <= end."
+            return "Error: 'lines' must be [start, end] with 1-based line numbers, start <= end (use [n, n] for a single line)."
 
         existing = block.tex.splitlines()
         start, end = lines[0] - 1, lines[1]  # 0-based, end exclusive
@@ -490,7 +490,7 @@ def _replace_raw(
         issues = lint_raw(new_tex)
         if issues:
             issue_str = "\n".join(f"  - {i}" for i in issues)
-            return f"Lint issues found (set lint=false to override):\n{issue_str}"
+            return f"Error: Lint issues found (set lint=false to override):\n{issue_str}"
 
     block.tex = new_tex
     auto_save()
@@ -509,9 +509,9 @@ def lint_raw(tex: str) -> list[str]:
     import re
     issues: list[str] = []
 
-    # Environment balance
-    begins = re.findall(r"\\begin\{(\w+)\}", tex)
-    ends = re.findall(r"\\end\{(\w+)\}", tex)
+    # Environment balance (starred envs like table*/figure* are valid)
+    begins = re.findall(r"\\begin\{([\w*]+)\}", tex)
+    ends = re.findall(r"\\end\{([\w*]+)\}", tex)
 
     begin_counts: dict[str, int] = {}
     for env in begins:
@@ -529,9 +529,13 @@ def lint_raw(tex: str) -> list[str]:
         elif e > b:
             issues.append(f"Extra \\end{{{env}}} ({b} begin, {e} end)")
 
-    # Brace balance (skip escaped braces)
+    # Brace balance (skip escaped braces and verbatim-style regions, where
+    # braces are literal text — e.g. URLs or quoted LaTeX inside verbatim)
+    balanced_tex = re.sub(
+        r"\\begin\{(verbatim|lstlisting|minted)\}.*?\\end\{\1\}",
+        "", tex, flags=re.S)
     depth = 0
-    for i, ch in enumerate(tex):
+    for i, ch in enumerate(balanced_tex):
         if ch == "{" and (i == 0 or tex[i-1] != "\\"):
             depth += 1
         elif ch == "}" and (i == 0 or tex[i-1] != "\\"):

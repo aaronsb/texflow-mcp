@@ -61,7 +61,10 @@ class VisionReport:
 
     @property
     def degraded(self) -> bool:
-        return any("failed" in n or "fallback" in n or "skipped" in n for n in self.notes)
+        return any(
+            "failed" in n or "fallback" in n or "skipped" in n or "ambiguous" in n
+            for n in self.notes
+        )
 
     def format(self) -> str:
         lines: list[str] = []
@@ -74,6 +77,9 @@ class VisionReport:
                 for f in by_page[page]:
                     loc = f" ({f.location})" if f.location else ""
                     lines.append(f"    - {f.category}{loc}: {f.detail}")
+        elif self.degraded:
+            lines.append("  Vision degraded — page scan is unreliable. Do not treat as a clean pass;")
+            lines.append("  rely on the log defects above and inspect pages via render(action='preview').")
         else:
             lines.append("  No visual defects reported.")
         if self.notes:

@@ -246,7 +246,14 @@ def _ingest(source: str | None, section: str | None = None) -> str:
         source_path = Path(source)
         if source_path.exists() and source_path.is_file():
             text = source_path.read_text(encoding="utf-8")
-            if source_path.suffix.lower() == ".tex":
+            is_tex = source_path.suffix.lower() == ".tex"
+            if not is_tex and re.search(r"\\documentclass|\\begin\{document\}", text[:4000]):
+                # A file that isn't named .tex but holds full LaTeX must not go
+                # through the markdown restructure (it would mangle labels,
+                # environments, \usepackage) — parse it as TeX so raw content
+                # survives verbatim.
+                is_tex = True
+            if is_tex:
                 from ..tex_ingestion import ingest_tex, parse_bib_file
                 doc = ingest_tex(text)
                 # Load sibling .bib file if present
@@ -259,7 +266,7 @@ def _ingest(source: str | None, section: str | None = None) -> str:
                         doc.bibliography.entries = entries
             else:
                 doc = ingest_markdown(text)
-            if existing_layout is not None and not source_path.suffix.lower() == ".tex":
+            if existing_layout is not None and not is_tex:
                 doc.layout = existing_layout
             doc.save_path = get_output_dir() / "document.texflow.json"
             set_doc(doc)

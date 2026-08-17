@@ -13,8 +13,6 @@ from .templates import _parse_frontmatter
 _DATA_DIR = Path(__file__).parent / "data"
 _STYLE_DIR = _DATA_DIR / "styles"
 
-_styles: dict[str, Style] | None = None
-
 
 @dataclass
 class Style:
@@ -62,11 +60,9 @@ def _load_styles() -> dict[str, Style]:
 
 
 def get_styles() -> dict[str, Style]:
-    """Return the style index (lazy-loaded, cached)."""
-    global _styles
-    if _styles is None:
-        _styles = _load_styles()
-    return _styles
+    """Return the style index, re-read from disk on every call so edits to
+    style .yaml files apply without restarting the server."""
+    return _load_styles()
 
 
 def get_style(slug: str) -> Style | None:

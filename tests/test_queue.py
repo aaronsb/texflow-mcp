@@ -158,6 +158,20 @@ class TestQueueErrorHandling:
         ])
         assert state._save_suppressed is False
 
+    def test_lint_rejection_counted_as_error(self):
+        """A lint-rejected edit must count as an error, not a silent success
+        (queue honesty — audit finding #2)."""
+        result = queue_tool([
+            {"tool": "document", "action": "create"},
+            {"tool": "edit", "action": "insert", "block_type": "raw",
+             "content": "\\begin{tikzpicture}\n\\end{tikzpicture}"},
+            {"tool": "edit", "action": "replace_raw", "position": 0,
+             "content": "\\begin{tikzpicture}\nno end"},
+        ])
+        assert "Success: 2" in result
+        assert "Errors: 1" in result
+        assert "Lint issues found" in result
+
 
 class TestQueueResults:
     def test_result_format(self):
