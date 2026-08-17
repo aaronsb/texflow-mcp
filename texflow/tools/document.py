@@ -420,6 +420,8 @@ def _switch(variant: str | None) -> str:
     if not variant:
         return "Error: 'variant' is required (see document(action='list_variants'))."
     path = variants_dir() / variant
+    if not path.exists() and not variant.endswith(".json"):
+        path = variants_dir() / f"{variant}.texflow.json"
     if not path.exists():
         return f"Error: variant '{variant}' not found. See document(action='list_variants')."
     current = get_doc()

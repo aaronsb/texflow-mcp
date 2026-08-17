@@ -2,8 +2,8 @@
 # Fetch IEEE Access class file (ieeeaccess.cls) into this directory.
 #
 # IEEE distributes class files only from its own channels and frequently
-# moves URLs, so this tries the listed URLs, falls back to CTAN, and always
-# ends with a clear fix-it instruction instead of a broken bundle.
+# moves URLs, so this tries the official IEEE Access template URL and
+# always ends with a clear fix-it instruction instead of a broken bundle.
 #
 # Usage:
 #   ./fetch_ieee_templates.sh            download (best-effort)
@@ -16,8 +16,7 @@ if [[ "${1:-}" == "--check" ]]; then
     CHECK=1
 fi
 
-ieee_author_center="https://ieeeauthorcenter.ieee.org/wp-content/uploads/IEEEtran.zip"
-ctan_ieeeaccess="https://mirrors.ctan.org/macros/latex/contrib/ieeeaccess.zip"
+ieee_author_center="https://ieeeaccess.ieee.org/wp-content/uploads/2026/05/ACCESS_latex_template_20260513-1-1.zip"
 
 have_local_cls() {
     [[ -f "$DIR/ieeeaccess.cls" ]]
@@ -68,14 +67,23 @@ fetch_and_extract() {
     fi
     cp "$found" "$DIR/ieeeaccess.cls"
     echo "Installed ieeeaccess.cls -> $DIR/ieeeaccess.cls"
+    # The class uses the template's own fonts, logos, and spotcolor at
+    # \usepackage time and via \EOD — copy those alongside it.
+    for pattern in \
+        't1-formata*' 't1-giovannistd*' '*formata*.fd' '*giovannistd*.fd' \
+        't1-formata.map' 't1-giovannistd.map' \
+        'logo.png' 'notaglinelogo.png' 'bullet.png' 'spotcolor.sty'; do
+        find "$tmp/pkg" -name "$pattern" -exec cp -n {} "$DIR/" \; 2>/dev/null
+    done
+    echo "Installed fonts/logos (t1-formata, t1-giovannistd, spotcolor.sty, *.png)."
     return 0
 }
 
-if ! fetch_and_extract "$ctan_ieeeaccess" && ! fetch_and_extract "$ieee_author_center"; then
+if ! fetch_and_extract "$ieee_author_center"; then
     echo
     echo "Could not auto-download ieeeaccess.cls. IEEE moves these URLs often;"
-    echo "give it to you from: https://ieeeauthorcenter.ieee.org/create-your-ieee-article/"
-    echo "use-authoring-tools-and-ieee-article-templates/ and place the file next to this script."
+    echo "grab the latest template from https://ieeeaccess.ieee.org/guide-for-authors/ and"
+    echo "place ieeeaccess.cls next to this script."
     exit 1
 fi
 

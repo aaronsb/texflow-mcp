@@ -2,12 +2,31 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
-from ..compiler import compile_tex, preview_all_pages, preview_page, parse_log_defects
+from ..compiler import compile_tex, preferred_engine, preview_all_pages, preview_page, parse_log_defects
 from ..formatters import format_check_result, format_compile_result, format_preview_result
 from ..serializer import serialize, serialize_bib
 from .state import auto_save, get_output_dir, require_doc
+
+
+def _ieee_texinputs() -> list[Path]:
+    """TEXINPUTS entry for bundled IEEE class files (never installed system-wide)."""
+    ieee_dir = Path(__file__).resolve().parent.parent / "data" / "ieee"
+    return [ieee_dir] if ieee_dir.exists() else []
+
+
+def _engine_for(doc) -> str:
+    """Engine for this document. ieeeaccess.cls relies on pdfTeX primitives
+    (spotcolor \pdfobj), so its variants must compile under pdflatex."""
+    from ..model import DocumentClass
+
+    if getattr(doc, "layout", None) and doc.layout.document_class == DocumentClass.IEEE_ACCESS:
+        if not shutil.which("pdflatex"):
+            return preferred_engine()
+        return "pdflatex"
+    return preferred_engine()
 
 
 def render_tool(
@@ -49,14 +68,14 @@ _last_result = None
 def _compile(output_path: str | None) -> str:
     global _last_result
     doc = require_doc()
-    tex = serialize(doc)
+    tex = serialize(doc, engine=_engine_for(doc))
     bib = serialize_bib(doc) or None
 
     # Pre-compile capability check
     warnings = _check_packages(doc)
 
     out_dir = Path(output_path) if output_path else get_output_dir()
-    result = compile_tex(tex, output_dir=out_dir, bib_content=bib)
+    result = compile_tex(tex, output_dir=out_dir, bib_content=bib, extra_texinputs=_ieee_texinputs(), engine=_engine_for(doc))
     _last_result = result
 
     auto_save()
@@ -96,10 +115,10 @@ def _check(dpi: int, vision: str) -> str:
     doc = require_doc()
 
     # Compile fresh; the check must judge the current model state.
-    tex = serialize(doc)
+    tex = serialize(doc, engine=_engine_for(doc))
     bib = serialize_bib(doc) or None
     out_dir = get_output_dir()
-    result = compile_tex(tex, output_dir=out_dir, bib_content=bib)
+    result = compile_tex(tex, output_dir=out_dir, bib_content=bib, extra_texinputs=_ieee_texinputs(), engine=_engine_for(doc))
     _last_result = result
     auto_save()
 
@@ -122,8 +141,8 @@ def _preview(page: int, dpi: int) -> str:
     else:
         # Try compiling first
         doc = require_doc()
-        tex = serialize(doc)
-        result = compile_tex(tex, output_dir=get_output_dir())
+        tex = serialize(doc, engine=_engine_for(doc))
+        result = compile_tex(tex, output_dir=get_output_dir(), extra_texinputs=_ieee_texinputs(), engine=_engine_for(doc))
         if result.success and result.pdf_path:
             pdf_path = result.pdf_path
 
@@ -139,4 +158,4 @@ def _preview(page: int, dpi: int) -> str:
 
 def _export_tex() -> str:
     doc = require_doc()
-    return serialize(doc)
+    return serialize(doc, engine=_engine_for(doc))

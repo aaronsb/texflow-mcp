@@ -33,6 +33,11 @@ class CompileError:
     context: str = ""
 
 
+def preferred_engine() -> str:
+    """Engine compile_tex will use: xelatex when available, else pdflatex."""
+    return "xelatex" if shutil.which("xelatex") else "pdflatex"
+
+
 def _run_engine(
     engine: str,
     filename: str,
@@ -45,6 +50,9 @@ def _run_engine(
         env = dict(os.environ)
         texinputs = "".join(f"{p}{os.pathsep}" for p in extra_texinputs)
         env["TEXINPUTS"] = texinputs + env.get("TEXINPUTS", "")
+        # Fonts (TFM/PFB/map files) can live next to bundled class files too.
+        env["TEXFONTS"] = texinputs + env.get("TEXFONTS", "")
+        env["FONTMAP"] = "".join(f"{p}{os.pathsep}" for p in extra_texinputs) + env.get("FONTMAP", "")
     try:
         proc = subprocess.run(
             [engine, "-interaction=nonstopmode", "-halt-on-error", f"{filename}.tex"],
@@ -85,6 +93,7 @@ def compile_tex(
     bib_content: str | None = None,
     use_bibtex: bool = False,
     extra_texinputs: list[Path] | None = None,
+    engine: str | None = None,
 ) -> CompileResult:
     """Compile a .tex string to PDF using xelatex.
 
@@ -92,8 +101,12 @@ def compile_tex(
     bibliography. Falls back to pdflatex if xelatex is not available.
     use_bibtex: use plain bibtex (IEEE classes) instead of biber/biblatex.
     extra_texinputs: directories prepended to TEXINPUTS (e.g. bundled class files).
+    engine: engine to use; defaults to preferred_engine(). Some classes are
+    engine-specific (e.g. ieeeaccess needs pdflatex's pdfTeX primitives).
     Returns CompileResult with paths and any errors.
     """
+    if not engine:
+        engine = preferred_engine()
     if not shutil.which("xelatex") and not shutil.which("pdflatex"):
         # No LaTeX engine available — write .tex only
         if output_dir:
@@ -107,8 +120,6 @@ def compile_tex(
             tex_path=tex_path,
             errors=[CompileError(message="No LaTeX engine found. Install xelatex or pdflatex.")],
         )
-
-    engine = "xelatex" if shutil.which("xelatex") else "pdflatex"
 
     with tempfile.TemporaryDirectory(prefix="texflow_") as tmp:
         work_dir = Path(tmp)
@@ -157,7 +168,21 @@ def compile_tex(
             warnings = _parse_warnings(log_content)
 
         pdf_path = work_dir / f"{filename}.pdf"
-        success = pdf_path.exists() and not errors
+        pdf_ok = (
+            pdf_path.exists()
+            and pdf_path.stat().st_size > 100
+            and pdf_path.read_bytes()[:4] == b"%PDF"
+        )
+        if not pdf_ok and not errors:
+            # The engine exited cleanly but the output driver produced no
+            # usable PDF (e.g. xdvipdfmx couldn't embed a font). Surface it.
+            errors.append(
+                CompileError(
+                    message="Engine reported no errors but no usable PDF was produced "
+                    "(output driver failure, e.g. missing font files)."
+                )
+            )
+        success = pdf_ok and not errors
 
         if not success and not errors:
             # No !-prefixed errors parsed but no PDF either (e.g. a broken

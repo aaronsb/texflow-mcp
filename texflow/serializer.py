@@ -212,7 +212,7 @@ def _documentclass_line(doc: Document) -> str:
     return f"\\documentclass[{','.join(class_options)}]{{{cls.value}}}"
 
 
-def _preamble(doc: Document) -> str:
+def _preamble(doc: Document, engine: str = "xelatex") -> str:
     lines: list[str] = []
     layout = doc.layout
     is_ieee = layout.document_class.is_ieee
@@ -225,6 +225,7 @@ def _preamble(doc: Document) -> str:
     if is_ieee:
         lines.append("\\IEEEoverridecommandlockouts")
         if layout.document_class == DocumentClass.IEEE_ACCESS:
+            lines.append("\\doi{}")
             lines.append(
                 "\\IEEEpubid{\\begin{minipage}{\\textwidth}\\footnotesize "
                 "This work is licensed under a Creative Commons Attribution 4.0 License. "
@@ -245,6 +246,12 @@ def _preamble(doc: Document) -> str:
 
     # Packages
     packages = doc.required_packages
+    if engine == "xelatex":
+        # XeTeX uses native OpenType fonts (TU encoding): the T1/utf8
+        # packages are pdflatex-era and can break the output driver on
+        # installs without Type1 font sets.
+        packages.discard("fontenc")
+        packages.discard("inputenc")
     font_map = _load_font_map()
 
     # Add font packages
@@ -449,6 +456,11 @@ def _end_document(doc: Document) -> str:
             lines.append("\\bibliography{references}")
         else:
             lines.append("\\printbibliography")
+        lines.append("")
+
+    if doc.layout.document_class == DocumentClass.IEEE_ACCESS:
+        # The ieeeaccess class errors out without the \EOD marker.
+        lines.append("\\EOD")
         lines.append("")
 
     lines.append("\\end{document}")
@@ -754,11 +766,15 @@ _TEX_HEADER = (
 )
 
 
-def serialize(doc: Document) -> str:
-    """Serialize a Document model to a complete .tex string."""
+def serialize(doc: Document, engine: str = "xelatex") -> str:
+    """Serialize a Document model to a complete .tex string.
+
+    engine: "xelatex" (default) or "pdflatex". XeTeX output omits the
+    T1 fontenc/utf8 inputenc boilerplate (native OpenType instead).
+    """
     parts = [
         _TEX_HEADER,
-        _preamble(doc),
+        _preamble(doc, engine),
         _begin_document(doc),
         _body(doc),
         _end_document(doc),

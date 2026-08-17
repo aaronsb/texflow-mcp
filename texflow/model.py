@@ -270,6 +270,10 @@ class Document:
             pkgs.discard("inputenc")
             if self.layout.document_class == DocumentClass.IEEE_CONFERENCE:
                 pkgs.discard("hyperref")
+            if self.layout.document_class == DocumentClass.IEEE_ACCESS:
+                # The class uses \includegraphics/\rotatebox (abstract bullet,
+                # \EOD, title-page logos) but never loads graphicx itself.
+                pkgs.add("graphicx")
 
         layout = self.layout
         if layout.columns > 2:
