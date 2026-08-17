@@ -7,6 +7,7 @@ All external tools are optional with graceful degradation.
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -32,8 +33,18 @@ class CompileError:
     context: str = ""
 
 
-def _run_engine(engine: str, filename: str, work_dir: Path) -> tuple[str, CompileError | None]:
+def _run_engine(
+    engine: str,
+    filename: str,
+    work_dir: Path,
+    extra_texinputs: list[Path] | None = None,
+) -> tuple[str, CompileError | None]:
     """Run a single LaTeX engine pass. Returns (stdout, error_or_none)."""
+    env = None
+    if extra_texinputs:
+        env = dict(os.environ)
+        texinputs = "".join(f"{p}{os.pathsep}" for p in extra_texinputs)
+        env["TEXINPUTS"] = texinputs + env.get("TEXINPUTS", "")
     try:
         proc = subprocess.run(
             [engine, "-interaction=nonstopmode", "-halt-on-error", f"{filename}.tex"],
@@ -41,6 +52,7 @@ def _run_engine(engine: str, filename: str, work_dir: Path) -> tuple[str, Compil
             capture_output=True,
             text=True,
             timeout=60,
+            env=env,
         )
         return proc.stdout, None
     except subprocess.TimeoutExpired:
@@ -49,16 +61,37 @@ def _run_engine(engine: str, filename: str, work_dir: Path) -> tuple[str, Compil
         return "", CompileError(message=f"Compilation failed: {e}")
 
 
+def _run_tool(tool: str, filename: str, work_dir: Path) -> CompileError | None:
+    """Run bibtex/biber once. Returns error or None."""
+    try:
+        proc = subprocess.run(
+            [tool, filename],
+            cwd=work_dir,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if proc.returncode != 0:
+            return CompileError(message=f"{tool} failed (exit {proc.returncode}): {proc.stderr[-300:]}")
+        return None
+    except Exception as e:
+        return CompileError(message=f"{tool} failed: {e}")
+
+
 def compile_tex(
     tex_content: str,
     output_dir: Path | None = None,
     filename: str = "document",
     bib_content: str | None = None,
+    use_bibtex: bool = False,
+    extra_texinputs: list[Path] | None = None,
 ) -> CompileResult:
     """Compile a .tex string to PDF using xelatex.
 
-    Runs xelatex → (biber) → xelatex → xelatex for cross-references and
+    Runs xelatex → (bibtex|biber) → xelatex → xelatex for cross-references and
     bibliography. Falls back to pdflatex if xelatex is not available.
+    use_bibtex: use plain bibtex (IEEE classes) instead of biber/biblatex.
+    extra_texinputs: directories prepended to TEXINPUTS (e.g. bundled class files).
     Returns CompileResult with paths and any errors.
     """
     if not shutil.which("xelatex") and not shutil.which("pdflatex"):
@@ -92,27 +125,25 @@ def compile_tex(
         log_content = ""
 
         # Pass 1: xelatex
-        log_content, err = _run_engine(engine, filename, work_dir)
+        log_content, err = _run_engine(engine, filename, work_dir, extra_texinputs)
         if err:
             errors.append(err)
             return CompileResult(success=False, tex_path=tex_path, errors=errors, log=log_content)
 
-        # Pass 2: biber (conditional — only when bib content provided and biber available)
-        if bib_content and shutil.which("biber"):
-            try:
-                subprocess.run(
-                    ["biber", filename],
-                    cwd=work_dir,
-                    capture_output=True,
-                    text=True,
-                    timeout=60,
-                )
-            except Exception as e:
-                errors.append(CompileError(message=f"Biber failed: {e}"))
+        # Pass 2: bibliography (conditional — only when bib content provided)
+        if bib_content:
+            if use_bibtex and shutil.which("bibtex"):
+                err = _run_tool("bibtex", filename, work_dir)
+                if err:
+                    errors.append(err)
+            elif shutil.which("biber"):
+                err = _run_tool("biber", filename, work_dir)
+                if err:
+                    errors.append(err)
 
         # Pass 3 & 4: xelatex (resolve references and bibliography)
         for _ in range(2):
-            log_content, err = _run_engine(engine, filename, work_dir)
+            log_content, err = _run_engine(engine, filename, work_dir, extra_texinputs)
             if err:
                 errors.append(err)
                 return CompileResult(success=False, tex_path=tex_path, errors=errors, log=log_content)
@@ -213,6 +244,70 @@ def preview_page(
         height=height,
         file_size=png_path.stat().st_size,
     )
+
+
+def preview_all_pages(
+    pdf_path: Path,
+    dpi: int = 150,
+    output_dir: Path | None = None,
+) -> list[PreviewResult]:
+    """Render every page of a PDF to PNG (pdftoppm, no page limits).
+
+    Returns a list of PreviewResult sorted by page number, or [] if unavailable.
+    """
+    if not shutil.which("pdftoppm") or not pdf_path.exists():
+        return []
+
+    dest_dir = output_dir or pdf_path.parent
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    out_prefix = dest_dir / "check-page"
+
+    try:
+        subprocess.run(
+            ["pdftoppm", "-png", "-r", str(dpi), str(pdf_path), str(out_prefix)],
+            capture_output=True,
+            timeout=60,
+        )
+    except (subprocess.TimeoutExpired, Exception):
+        return []
+
+    pages: list[PreviewResult] = []
+    for png in sorted(dest_dir.glob("check-page*.png")):
+        m = re.search(r"(\d+)$", png.stem)
+        page_num = int(m.group(1)) if m else 1
+        width, height = _get_png_dimensions(png)
+        pages.append(PreviewResult(
+            png_path=png, page=page_num, width=width, height=height,
+            file_size=png.stat().st_size,
+        ))
+    return pages
+
+
+def parse_log_defects(log: str) -> list[str]:
+    """Extract layout-relevant defects from a LaTeX log.
+
+    Maps log noise onto a fixed defect taxonomy (overflow / misplaced float /
+    missing content) with line numbers, so a vision check can focus on what
+    actually went wrong. Returns human-readable findings (empty = clean).
+    """
+    defects: list[str] = []
+
+    for m in re.finditer(r"Overfull \\hbox \((\d+(?:\.\d+)?)pt too wide\)[^\n]*in paragraph at lines (\d+)", log):
+        defects.append(f"overflow: {m.group(1)}pt overfull hbox near line {m.group(2)} — content wider than column/page")
+    for m in re.finditer(r"Overfull \\vbox \((\d+(?:\.\d+)?)pt too high\)[^\n]*at lines (\d+)", log):
+        defects.append(f"overflow: {m.group(1)}pt overfull vbox near line {m.group(2)}")
+    for m in re.finditer(r"Float (?:too large for page|(?:s|) (?:lost|not placed))[^\n]*", log):
+        defects.append(f"misplaced float: {m.group(0).strip()[:120]}")
+    for m in re.finditer(r"File `([^']+)' not found", log):
+        defects.append(f"missing file: {m.group(1)}")
+    for m in re.finditer(r"Reference `([^']+)' on page \d+ undefined", log):
+        defects.append(f"undefined reference: {m.group(1)}")
+    for m in re.finditer(r"There were undefined references\.", log):
+        defects.append("undefined references: LaTeX reports unresolved \\ref/\\cite")
+
+    # De-duplicate, keep order
+    seen: set[str] = set()
+    return [d for d in defects if not (d in seen or seen.add(d))]
 
 
 def _get_png_dimensions(path: Path) -> tuple[int, int]:

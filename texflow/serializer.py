@@ -16,6 +16,7 @@ from .model import (
     Block,
     CodeBlock,
     Document,
+    DocumentClass,
     Equation,
     Figure,
     HeaderFooter,
@@ -169,16 +170,78 @@ def _convert_inline_markup(text: str) -> str:
 # --- Preamble ---
 
 
-def _preamble(doc: Document) -> str:
-    lines: list[str] = []
-    layout = doc.layout
+def _ieee_author_blocks(meta) -> str:
+    """Build \\IEEEauthorblockN/A scaffold from metadata.
 
-    # Document class with options
+    author is split on ' and '; affiliations are index-matched.
+    Falls back to a plain \\author list when no affiliations are set.
+    """
+    names = [n.strip() for n in meta.author.split(" and ") if n.strip()]
+    if not names:
+        return ""
+    if not meta.affiliations:
+        return " and ".join(escape_latex(n) for n in names)
+    blocks: list[str] = []
+    for i, name in enumerate(names):
+        affil = meta.affiliations[i] if i < len(meta.affiliations) else (
+            meta.affiliations[-1] if meta.affiliations else ""
+        )
+        if affil:
+            affil_tex = affil.replace("\\n", " \\\\ ")
+            blocks.append(
+                f"\\IEEEauthorblockN{{{escape_latex(name)}}}\n"
+                f"\\IEEEauthorblockA{{\\textit{{{escape_latex(affil_tex)}}}}}"
+            )
+        else:
+            blocks.append(f"\\IEEEauthorblockN{{{escape_latex(name)}}}")
+    return "\n\\and\n".join(blocks)
+
+
+def _documentclass_line(doc: Document) -> str:
+    """Emit the \\documentclass line, class-aware for IEEE classes."""
+    layout = doc.layout
+    cls = layout.document_class
+    if cls == DocumentClass.IEEE_ACCESS:
+        return "\\documentclass{ieeeaccess}"
+    if cls == DocumentClass.IEEE_CONFERENCE:
+        # Official IEEEtran conference mode (WIECON-ECE uses this class)
+        return "\\documentclass[10pt, conference, letterpaper]{IEEEtran}"
     class_options: list[str] = [layout.font_size, layout.paper_size]
     if layout.columns == 2:
         class_options.append("twocolumn")
-    lines.append(f"\\documentclass[{','.join(class_options)}]{{{layout.document_class.value}}}")
+    return f"\\documentclass[{','.join(class_options)}]{{{cls.value}}}"
+
+
+def _preamble(doc: Document) -> str:
+    lines: list[str] = []
+    layout = doc.layout
+    is_ieee = layout.document_class.is_ieee
+
+    lines.append(_documentclass_line(doc))
     lines.append("")
+
+    # IEEE class boilerplate: lockout override, CC BY 4.0 pubid (Access only),
+    # running header, and author blocks — the agent never has to remember these.
+    if is_ieee:
+        lines.append("\\IEEEoverridecommandlockouts")
+        if layout.document_class == DocumentClass.IEEE_ACCESS:
+            lines.append(
+                "\\IEEEpubid{\\begin{minipage}{\\textwidth}\\footnotesize "
+                "This work is licensed under a Creative Commons Attribution 4.0 License. "
+                "For more information, see "
+                "\\href{https://creativecommons.org/licenses/by/4.0/}"
+                "{https://creativecommons.org/licenses/by/4.0/}.\\end{minipage}}"
+            )
+        if doc.metadata.title:
+            first_author = doc.metadata.author.split(" and ")[0].strip()
+            runner = first_author or "Author"
+            lines.append(f"\\markboth{{{escape_latex(runner)}}}{{{escape_latex(doc.metadata.title)}}}")
+        if doc.metadata.title:
+            lines.append(f"\\title{{{escape_latex(doc.metadata.title)}}}")
+        author_tex = _ieee_author_blocks(doc.metadata)
+        if author_tex:
+            lines.append(f"\\author{{{author_tex}}}")
+        lines.append("")
 
     # Packages
     packages = doc.required_packages
@@ -278,15 +341,16 @@ def _preamble(doc: Document) -> str:
         lines.append("\\renewcommand{\\headrulewidth}{0.4pt}")
         lines.append("")
 
-    # Metadata
-    if doc.metadata.title:
-        lines.append(f"\\title{{{escape_latex(doc.metadata.title)}}}")
-    if doc.metadata.author:
-        lines.append(f"\\author{{{escape_latex(doc.metadata.author)}}}")
-    if doc.metadata.date:
-        lines.append(f"\\date{{{doc.metadata.date}}}")
-    if doc.metadata.title or doc.metadata.author:
-        lines.append("")
+    # Metadata (IEEE classes emit \title/\author in the class boilerplate above)
+    if not is_ieee:
+        if doc.metadata.title:
+            lines.append(f"\\title{{{escape_latex(doc.metadata.title)}}}")
+        if doc.metadata.author:
+            lines.append(f"\\author{{{escape_latex(doc.metadata.author)}}}")
+        if doc.metadata.date:
+            lines.append(f"\\date{{{doc.metadata.date}}}")
+        if doc.metadata.title or doc.metadata.author:
+            lines.append("")
 
     return "\n".join(lines)
 
@@ -334,6 +398,13 @@ def _begin_document(doc: Document) -> str:
         lines.append(escape_latex(doc.metadata.abstract))
         lines.append("\\end{abstract}")
 
+    if doc.layout.document_class.is_ieee:
+        if doc.metadata.keywords:
+            lines.append("")
+            lines.append("\\begin{IEEEkeywords}")
+            lines.append(", ".join(escape_latex(k) for k in doc.metadata.keywords))
+            lines.append("\\end{IEEEkeywords}")
+
     if doc.layout.toc:
         lines.append("")
         lines.append("\\tableofcontents")
@@ -372,7 +443,12 @@ def _end_document(doc: Document) -> str:
     lines: list[str] = []
 
     if doc.bibliography and doc.bibliography.entries:
-        lines.append("\\printbibliography")
+        if doc.layout.document_class.is_ieee:
+            # IEEE classes use plain bibtex, not biblatex
+            lines.append("\\bibliographystyle{IEEEtran}")
+            lines.append("\\bibliography{references}")
+        else:
+            lines.append("\\printbibliography")
         lines.append("")
 
     lines.append("\\end{document}")
@@ -385,15 +461,17 @@ _SECTION_COMMANDS = {1: "section", 2: "subsection", 3: "subsubsection"}
 
 
 def _serialize_block(block: Block, doc: Document | None = None) -> str:
+    if doc is not None:
+        block = doc.resolve(block)
     match block:
         case Section():
             return _serialize_section(block, doc)
         case Paragraph():
             return _serialize_paragraph(block)
         case Figure():
-            return _serialize_figure(block)
+            return _serialize_figure(block, doc)
         case Table():
-            return _serialize_table(block)
+            return _serialize_table(block, doc)
         case CodeBlock():
             return _serialize_code(block)
         case ItemList():
@@ -439,9 +517,14 @@ def _serialize_paragraph(para: Paragraph) -> str:
     return text
 
 
-def _serialize_figure(fig: Figure) -> str:
+def _serialize_figure(fig: Figure, doc: Document | None = None) -> str:
+    span = fig.span_columns
+    if doc is not None and (doc.layout.columns == 2 or doc.layout.document_class.is_ieee) and not span:
+        # Auto-promote to figure* when wider than one column
+        span = _is_wide_figure(fig, doc)
+    env = "figure*" if span else "figure"
     lines = [
-        f"\\begin{{figure}}[{fig.position}]",
+        f"\\begin{{{env}}}[{fig.position}]",
         "\\centering",
         f"\\includegraphics[width={fig.width}]{{{fig.path}}}",
     ]
@@ -449,11 +532,26 @@ def _serialize_figure(fig: Figure) -> str:
         lines.append(f"\\caption{{{escape_latex(fig.caption)}}}")
     if fig.label:
         lines.append(f"\\label{{{fig.label}}}")
-    lines.append("\\end{figure}")
+    lines.append(f"\\end{{{env}}}")
     return "\n".join(lines)
 
 
-def _serialize_table(tbl: Table) -> str:
+def _is_wide_figure(fig: Figure, doc: Document) -> bool:
+    """Heuristic: does the figure width exceed one column in a two-column layout?
+
+    A \\textwidth-based fraction >= 0.55 of the full width cannot fit in a
+    column (columns are roughly 0.48 of textwidth), so promote to figure*.
+    \\columnwidth-relative widths are never promoted.
+    """
+    if doc.layout.columns != 2 and not doc.layout.document_class.is_ieee:
+        return False
+    m = re.match(r"^\s*(\d+(?:\.\d+)?)\s*\\(textwidth)\s*$", fig.width)
+    if not m:
+        return False
+    return float(m.group(1)) >= 0.55
+
+
+def _serialize_table(tbl: Table, doc: Document | None = None) -> str:
     ncols = len(tbl.headers) if tbl.headers else (len(tbl.rows[0]) if tbl.rows else 0)
     if ncols == 0:
         return "% Empty table"
@@ -463,34 +561,131 @@ def _serialize_table(tbl: Table) -> str:
     else:
         col_spec = " ".join(["l"] * ncols)
 
-    lines = [f"\\begin{{table}}[{tbl.position}]", "\\centering"]
-    lines.append(f"\\begin{{tabular}}{{{col_spec}}}")
+    if doc is not None and tbl.fit == "auto":
+        tbl = _fit_table(tbl, doc, ncols)
 
-    if tbl.booktabs:
-        lines.append("\\toprule")
-
-    if tbl.headers:
-        lines.append(" & ".join(escape_latex(h) for h in tbl.headers) + " \\\\")
-        if tbl.booktabs:
-            lines.append("\\midrule")
-
-    for row in tbl.rows:
-        cells = [escape_latex(c) for c in row]
-        # Pad or trim to ncols
-        while len(cells) < ncols:
-            cells.append("")
-        lines.append(" & ".join(cells[:ncols]) + " \\\\")
-
-    if tbl.booktabs:
-        lines.append("\\bottomrule")
-
-    lines.append("\\end{tabular}")
+    span = tbl.span_columns
+    env = "table*" if span else "table"
+    lines = [f"\\begin{{{env}}}[{tbl.position}]", "\\centering"]
+    lines.extend(_table_body(tbl, ncols, col_spec))
     if tbl.caption:
         lines.append(f"\\caption{{{escape_latex(tbl.caption)}}}")
     if tbl.label:
         lines.append(f"\\label{{{tbl.label}}}")
-    lines.append("\\end{table}")
+    lines.append(f"\\end{{{env}}}")
     return "\n".join(lines)
+
+
+# Estimated characters that fit in one textwidth, by column mode.
+# Rough, calibration-free constants: ~90 chars at 12pt single-column article,
+# ~48 chars per IEEE-style two-column column.
+_FULL_WIDTH_CHARS = 90
+_COLUMN_WIDTH_CHARS = 45
+
+
+def _estimate_table_chars(tbl: Table, ncols: int) -> int:
+    """Estimate rendered width of a table in characters (ignoring markup)."""
+    widths = [0] * ncols
+    if tbl.headers:
+        for i, h in enumerate(tbl.headers[:ncols]):
+            widths[i] = max(widths[i], len(h))
+    for row in tbl.rows:
+        for i, cell in enumerate(row[:ncols]):
+            widths[i] = max(widths[i], len(cell))
+    # 2 chars per cell padding + inter-column space, 1 for the leading edge
+    return sum(widths) + ncols * 2 + 1
+
+
+def _fit_table(tbl: Table, doc: Document, ncols: int) -> Table:
+    """Apply width-fitting decisions for fit="auto".
+
+    Priority:
+    1. Two-column/IEEE layout: promote to table* when the table cannot fit a
+       single column (the classic IEEE failure mode).
+    2. Within the chosen width, fall back through tabularx (long text cells),
+       resizebox (numeric-heavy, few rows), adjustbox (catch-all).
+    Never silently clips.
+    """
+    from dataclasses import replace
+
+    two_column = doc.layout.columns == 2 or doc.layout.document_class.is_ieee
+    avail = _COLUMN_WIDTH_CHARS if two_column else _FULL_WIDTH_CHARS
+    est = _estimate_table_chars(tbl, ncols)
+
+    if two_column and not tbl.span_columns and est > avail:
+        # Too wide for a column: span full width, then re-evaluate.
+        tbl = replace(tbl, span_columns=True)
+        avail = _FULL_WIDTH_CHARS
+
+    if est <= avail:
+        return tbl
+
+    long_cells = any(len(c) > 25 for row in tbl.rows for c in row[:ncols])
+    if long_cells:
+        return replace(tbl, fit="tabularx")
+    if est <= avail * 2:
+        return replace(tbl, fit="resizebox")
+    return replace(tbl, fit="adjustbox")
+
+
+def _table_body(tbl: Table, ncols: int, col_spec: str) -> list[str]:
+    """Emit the tabular core of a table, honoring the fit mode."""
+    if tbl.fit == "tabularx":
+        return _tabularx_body(tbl, ncols, col_spec)
+    if tbl.fit == "resizebox":
+        inner = _plain_tabular(tbl, ncols, col_spec)
+        return [f"\\resizebox{{{tbl.width or '\\linewidth'}}}{{!}}{{"] + inner + ["}"]
+    if tbl.fit == "adjustbox":
+        inner = _plain_tabular(tbl, ncols, col_spec)
+        return [f"\\adjustbox{{max width={tbl.width or '\\linewidth'}}}{{"] + inner + ["}"]
+    return _plain_tabular(tbl, ncols, col_spec)
+
+
+def _tabularx_body(tbl: Table, ncols: int, col_spec: str) -> list[str]:
+    """tabularx with the widest column promoted to X."""
+    cells = col_spec.split()
+    if len(cells) < ncols:
+        cells = ["l"] * ncols
+    # Widest cell's column becomes flexible X
+    col_lens = [len(c) for c in cells]
+    widths = [0] * ncols
+    if tbl.headers:
+        for i, h in enumerate(tbl.headers[:ncols]):
+            widths[i] = max(widths[i], len(h))
+    for row in tbl.rows:
+        for i, c in enumerate(row[:ncols]):
+            widths[i] = max(widths[i], len(c))
+    widest = widths.index(max(widths))
+    cells[widest] = "X"
+    lines = [f"\\begin{{tabularx}}{{{tbl.width or '\\linewidth'}}}{{{' '.join(cells)}}}"]
+    lines.extend(_tablular_rows(tbl, ncols))
+    lines.append("\\end{tabularx}")
+    return lines
+
+
+def _plain_tabular(tbl: Table, ncols: int, col_spec: str) -> list[str]:
+    lines = [f"\\begin{{tabular}}{{{col_spec}}}"]
+    lines.extend(_tablular_rows(tbl, ncols))
+    lines.append("\\end{tabular}")
+    return lines
+
+
+def _tablular_rows(tbl: Table, ncols: int) -> list[str]:
+    lines: list[str] = []
+    if tbl.booktabs:
+        lines.append("\\toprule")
+    if tbl.headers:
+        lines.append(" & ".join(escape_latex(h) for h in tbl.headers[:ncols]) + " \\\\")
+        if tbl.booktabs:
+            lines.append("\\midrule")
+    for row in tbl.rows:
+        cells = [escape_latex(c) for c in row[:ncols]]
+        while len(cells) < ncols:
+            cells.append("")
+        lines.append(" & ".join(cells) + " \\\\")
+    if tbl.booktabs:
+        lines.append("\\bottomrule")
+    return lines
 
 
 _LISTINGS_LANGUAGES = {
@@ -582,3 +777,63 @@ def serialize_bib(doc: Document) -> str:
         )
         parts.append(f"@{entry.entry_type}{{{entry.key},\n{field_lines}\n}}")
     return "\n\n".join(parts) + "\n"
+
+
+# --- biblatex → bibtex compatibility scan (IEEE classes) ---
+
+_BIBLATEX_ONLY_COMMANDS = {
+    r"\parencite", r"\textcite", r"\autocite", r"\footcite", r"\smartcite",
+    r"\citeauthor", r"\citeyear", r"\citetitle", r"\citeurl", r"\fullcite",
+    r"\cites", r"\parencites", r"\autocites", r"\textcites", r"\footcites",
+    r"\citealp", r"\citealt", r"\citeauthor*", r"\citeyearpar",
+}
+
+_BIBLATEX_ONLY_FIELDS = {
+    "date", "journaltitle", "location", "origdate", "eventdate",
+    "urldate", "pubstate", "langid", "shorttitle", "entrysubtype",
+    "holder", "addendum", "related", "eprinttype", "eprintclass",
+}
+
+_BIBLATEX_CMD_RE = re.compile(
+    r"\\(" + "|".join(
+        re.escape(c.lstrip("\\").rstrip("*")) for c in _BIBLATEX_ONLY_COMMANDS
+    ) + r")(?:\*)?(?:\[[^\]]*\])?\{",
+)
+
+
+def scan_biblatex_compat(doc: Document) -> list[str]:
+    """Find biblatex-only constructs that would fail under plain bibtex.
+
+    Returns human-readable findings (empty = IEEE bibtex path is safe).
+    Only meaningful for IEEE classes, which switch to bibtex + IEEEtran.bst.
+    """
+    findings: list[str] = []
+
+    for block in doc._walk_blocks(doc.content):
+        text = ""
+        if isinstance(block, Paragraph):
+            text = block.text
+        elif isinstance(block, RawLatex):
+            text = block.tex
+        if not text:
+            continue
+        for m in _BIBLATEX_CMD_RE.finditer(text):
+            cmd = m.group(1)
+            findings.append(
+                f"biblatex-only command '\\{cmd}' in paragraph/raw block — "
+                "plain bibtex does not define it; rewrite as \\cite{...}"
+            )
+
+    if doc.bibliography:
+        for entry in doc.bibliography.entries:
+            for field in entry.fields:
+                if field.lower() in _BIBLATEX_ONLY_FIELDS:
+                    findings.append(
+                        f"biblatex-only field '{field}' in @{entry.entry_type}{{{entry.key}}} — "
+                        "plain bibtex may ignore or mis-parse it; use year/journal/address instead"
+                    )
+
+    # De-duplicate, keep order
+    seen: set[str] = set()
+    unique = [f for f in findings if not (f in seen or seen.add(f))]
+    return unique

@@ -21,6 +21,13 @@ class DocumentClass(Enum):
     MEMOIR = "memoir"
     LETTER = "letter"
     BEAMER = "beamer"
+    IEEE_ACCESS = "ieee-access"
+    IEEE_CONFERENCE = "ieee-conference"
+
+    @property
+    def is_ieee(self) -> bool:
+        """True for publisher-specific IEEE classes."""
+        return self in (DocumentClass.IEEE_ACCESS, DocumentClass.IEEE_CONFERENCE)
 
 
 # --- Layout components ---
@@ -70,6 +77,8 @@ class Metadata:
     author: str = ""
     date: str = "\\today"
     abstract: str = ""
+    keywords: list[str] = field(default_factory=list)  # IEEE \IEEEkeywords
+    affiliations: list[str] = field(default_factory=list)  # IEEE \IEEEauthorblockA, index-matched with author parts
 
 
 # --- Bibliography ---
@@ -118,6 +127,8 @@ class Figure:
     label: str = ""
     width: str = "0.8\\textwidth"
     position: str = "htbp"
+    span_columns: bool = False  # figure* (full-width) in two-column layouts
+    ref: str = ""  # Shared-block id; content resolved via Document.shared at serialize time
 
 
 @dataclass
@@ -129,6 +140,10 @@ class Table:
     alignment: list[str] | None = None  # "l", "c", "r" per column
     position: str = "htbp"
     booktabs: bool = True
+    width: str = ""  # Target width (e.g. "\\linewidth"); "" = natural width
+    fit: str = "auto"  # "auto" | "none" | "tabularx" | "resizebox" | "adjustbox"
+    span_columns: bool = False  # table* (full-width) in two-column layouts
+    ref: str = ""  # Shared-block id; content resolved via Document.shared at serialize time
 
 
 @dataclass
@@ -228,11 +243,33 @@ class Document:
     content: list[Block] = field(default_factory=list)
     bibliography: Bibliography | None = None
     save_path: Path | None = None  # Auto-persist location
+    shared: dict[str, dict] = field(default_factory=dict)  # Shared blocks by id (cloned variants)
+    variants: list[str] = field(default_factory=list)  # Saved variant names derived from this doc
+
+    def resolve(self, block: Block) -> Block:
+        """Resolve a block with a shared ref through the shared store.
+
+        Returns the shared block's deserialized content if ref exists,
+        otherwise the block as-is.
+        """
+        ref = getattr(block, "ref", "")
+        if ref and ref in self.shared:
+            resolved = _from_dict(self.shared[ref])
+            if isinstance(resolved, Block):
+                return resolved
+        return block
 
     @property
     def required_packages(self) -> set[str]:
         """Packages needed based on current document state."""
         pkgs: set[str] = {"inputenc", "fontenc", "geometry", "hyperref"}
+        if self.layout.document_class.is_ieee:
+            # IEEE classes manage their own layout/fonts/links.
+            # Access keeps hyperref: the CC BY 4.0 \IEEEpubid boilerplate uses \href.
+            pkgs.discard("geometry")
+            pkgs.discard("inputenc")
+            if self.layout.document_class == DocumentClass.IEEE_CONFERENCE:
+                pkgs.discard("hyperref")
 
         layout = self.layout
         if layout.columns > 2:
@@ -242,12 +279,20 @@ class Document:
         if layout.line_spacing:
             pkgs.add("setspace")
 
-        for block in self._walk_blocks(self.content):
+        for raw_block in self._walk_blocks(self.content):
+            block = self.resolve(raw_block)
             match block:
                 case Figure():
                     pkgs.add("graphicx")
-                case Table() if block.booktabs:
-                    pkgs.add("booktabs")
+                case Table():
+                    if block.booktabs:
+                        pkgs.add("booktabs")
+                    if block.fit == "tabularx":
+                        pkgs.add("tabularx")
+                    elif block.fit == "resizebox":
+                        pkgs.add("graphicx")
+                    elif block.fit == "adjustbox":
+                        pkgs.add("adjustbox")
                 case CodeBlock():
                     pkgs.add("listings")
                 case Equation():
@@ -272,7 +317,8 @@ class Document:
     def _walk_blocks(self, blocks: list[Block]) -> list[Block]:
         """Recursively collect all blocks including nested section content."""
         result: list[Block] = []
-        for block in blocks:
+        for raw in blocks:
+            block = self.resolve(raw)
             result.append(block)
             if isinstance(block, Section):
                 result.extend(self._walk_blocks(block.content))

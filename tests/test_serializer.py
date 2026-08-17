@@ -427,7 +427,8 @@ def test_serialize_complete_document():
     assert "$E = mc^2$" in tex
     assert "\\begin{equation}" in tex
     assert "\\begin{table}" in tex
-    assert "\\begin{figure}" in tex
+    # 0.8\textwidth in a twocolumn doc auto-promotes to figure* (wide figure)
+    assert "\\begin{figure*}" in tex
 
 
 # --- Bibliography tests ---

@@ -56,6 +56,9 @@ def document(
     abstract: str | None = None,
     source: str | None = None,
     section: str | None = None,
+    keywords: list[str] | None = None,
+    affiliations: list[str] | None = None,
+    variant: str | None = None,
 ) -> str:
     """Create, ingest, and inspect documents.
 
@@ -64,15 +67,27 @@ def document(
     - ingest: Parse markdown text, .tex file, or .md file into the document model.
     - outline: Show document structure (sections, block counts).
     - read: Read content of a specific section as prose text.
-    - update: Update document metadata (title, author, date, abstract).
+    - update: Update document metadata (title, author, date, abstract, keywords, affiliations).
     - reset: Clear the current document and saved state. Next create/ingest starts fresh.
+    - clone: Deep-copy the current document into a new variant (same or different
+      document class, e.g. ieee-conference → ieee-access). Blocks are NOT shared
+      by default; use edit(action='share') to keep a block live across variants.
+    - list_variants: List saved variants. Pass variant='name' to switch to it.
+    - switch: Alias for list_variants with variant=.
+    - validate: Structural QA — empty cells, ragged tables, abstract/prose
+      numeric mismatches, non-relative figure widths.
     - bib_add: Add a bibliography entry (provide BibTeX-format entry as source).
     - bib_remove: Remove a bibliography entry by key (provide key as source).
     - bib_list: List all bibliography entries.
     - bib_style: Set bibliography style (provide style name as source, e.g. "authoryear", "numeric").
+
+    document_class: article, report, book, memoir, letter, beamer,
+    ieee-access (requires ieeeaccess.cls, see texflow/data/ieee/), ieee-conference.
+    IEEE classes are two-column by default and use bibtex + IEEEtran.bst.
     """
     return _with_hints(document_tool(
         action, document_class, title, author, date, abstract, source, section,
+        keywords, affiliations, variant,
     ))
 
 
@@ -138,6 +153,10 @@ def edit(
     lines: list[int] | None = None,
     lint: bool = True,
     page_break: str | None = None,
+    width: str | None = None,
+    fit: str | None = None,
+    span_columns: bool | None = None,
+    block_id: str | None = None,
 ) -> str:
     """Manipulate document content structurally.
 
@@ -146,19 +165,29 @@ def edit(
     - replace: Replace a block at a position with new content.
     - delete: Remove a block at a position.
     - move: Move a block from one location to another.
+    - share: Register a Table/Figure as shared under block_id; both variants
+      resolve its content from the shared store (fix once, both update).
+    - unshare: Detach the block from the shared store, freezing its content.
     - read_raw: Read a RawLatex block with line numbers.
     - replace_raw: Update a RawLatex block (full or line-level) with lint check.
 
     Sections are addressed by title path (e.g., 'Methods/Data Collection').
     Blocks within a section are addressed by 0-based index.
 
+    width: Relative figure/table width — fraction of \\linewidth, \\textwidth,
+    or \\columnwidth (e.g. '0.8\\textwidth'). Absolute units are rejected:
+    they silently misrender across IEEE templates.
+    span_columns: Pull the float to span both columns (table*/figure*).
+    fit: Table width policy — auto (default), none, tabularx, resizebox,
+    adjustbox. auto promotes wide tables to table* and picks the fitting
+    mechanism from column count.
     page_break: For sections — "before", "after", "both", or "" to clear.
     Emits \\clearpage before/after the section.
     """
     return _with_hints(edit_tool(
         action, block_type, section, position, content, title, level,
         language, path, caption, headers, rows, target_section, target_position,
-        template, lines, lint, page_break,
+        template, lines, lint, page_break, width, fit, span_columns, block_id,
     ))
 
 
@@ -170,6 +199,7 @@ def render(
     output_path: str | None = None,
     page: int | None = None,
     dpi: int | None = None,
+    vision: str = "auto",
 ) -> str:
     """Compile and export the document.
 
@@ -177,8 +207,12 @@ def render(
     - compile: Serialize model to .tex, compile to PDF. Returns PDF path.
     - preview: Render a specific page as PNG file. Returns file path and dimensions.
     - tex: Export the raw .tex source. Returns the LaTeX content.
+    - check: One-shot structural QA — compile, render all pages, and score
+      them with a vision provider (overflow, tiny text, misplaced floats,
+      clipped tables) merged with log-parsed defects. vision: auto (polaris
+      local, falls back to gemini flash-lite), polaris, gemini, none.
     """
-    return _with_hints(render_tool(action, output_path, page, dpi))
+    return _with_hints(render_tool(action, output_path, page, dpi, vision))
 
 
 # --- Reference tool ---

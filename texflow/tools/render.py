@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ..compiler import compile_tex, preview_page
-from ..formatters import format_compile_result, format_preview_result
+from ..compiler import compile_tex, preview_all_pages, preview_page, parse_log_defects
+from ..formatters import format_check_result, format_compile_result, format_preview_result
 from ..serializer import serialize, serialize_bib
 from .state import auto_save, get_output_dir, require_doc
 
@@ -15,6 +15,7 @@ def render_tool(
     output_path: str | None = None,
     page: int | None = None,
     dpi: int | None = None,
+    vision: str = "auto",
 ) -> str:
     """Compile and export the document.
 
@@ -23,6 +24,11 @@ def render_tool(
     - preview: Render a specific page as PNG file. Returns file path and dimensions.
     - tex: Export the raw .tex source. Returns the LaTeX content.
     - errors: Return structured compilation errors from last compile.
+    - check: One-shot structural QA pass. Compiles, then scores every rendered
+      page with a vision provider (image-space: overflow, tiny text, misplaced
+      floats, clipped tables) and merges in log-parsed defects (hbox/vbox
+      overflow, missing files, undefined refs). vision: auto (polaris, falls
+      back to gemini), polaris, gemini, none.
     """
     match action:
         case "compile":
@@ -31,8 +37,10 @@ def render_tool(
             return _preview(page or 1, dpi or 150)
         case "tex":
             return _export_tex()
+        case "check":
+            return _check(dpi or 120, vision)
         case _:
-            return f"Unknown action: {action}. Valid: compile, preview, tex"
+            return f"Unknown action: {action}. Valid: compile, preview, tex, check"
 
 
 _last_result = None
@@ -60,13 +68,51 @@ def _compile(output_path: str | None) -> str:
 
 def _check_packages(doc) -> list[str]:
     """Check if required packages are available on the system."""
+    warnings: list[str] = []
     try:
         from ..capabilities import check_capabilities, format_missing_warnings
         needed = sorted(doc.required_packages)
         caps = check_capabilities(packages=needed)
-        return format_missing_warnings(caps, needed_packages=needed)
+        warnings = format_missing_warnings(caps, needed_packages=needed)
     except Exception:
-        return []
+        pass
+
+    if getattr(doc, "document_class", None) and doc.document_class.is_ieee:
+        from ..model import DocumentClass
+        if doc.document_class == DocumentClass.IEEE_ACCESS:
+            ieee_dir = Path(__file__).resolve().parent.parent / "data" / "ieee"
+            if not (ieee_dir / "ieeeaccess.cls").exists():
+                warnings.append(
+                    "ieeeaccess.cls is not installed. Run fetch_ieee_templates.sh in "
+                    "texflow/data/ieee/ to download it from the IEEE Author Center "
+                    "(class files are licensed, never bundled)."
+                )
+    return warnings
+
+
+def _check(dpi: int, vision: str) -> str:
+    """One-shot structural QA: compile, render all pages, log + vision defects."""
+    global _last_result
+    doc = require_doc()
+
+    # Compile fresh; the check must judge the current model state.
+    tex = serialize(doc)
+    bib = serialize_bib(doc) or None
+    out_dir = get_output_dir()
+    result = compile_tex(tex, output_dir=out_dir, bib_content=bib)
+    _last_result = result
+    auto_save()
+
+    log_defects = parse_log_defects(result.log) if result.log else []
+
+    pngs: list[Path] = []
+    if result.success and result.pdf_path:
+        pngs = [p.png_path for p in preview_all_pages(result.pdf_path, dpi=dpi, output_dir=out_dir)]
+
+    from ..vision import run_vision_check
+    vision_report = run_vision_check(pngs, provider=vision)
+
+    return format_check_result(result, log_defects, vision_report, pngs)
 
 
 def _preview(page: int, dpi: int) -> str:
