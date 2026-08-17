@@ -38,8 +38,8 @@ def _run_engine(
     filename: str,
     work_dir: Path,
     extra_texinputs: list[Path] | None = None,
-) -> tuple[str, CompileError | None]:
-    """Run a single LaTeX engine pass. Returns (stdout, error_or_none)."""
+) -> tuple[str, str, CompileError | None]:
+    """Run a single LaTeX engine pass. Returns (stdout, stderr, error_or_none)."""
     env = None
     if extra_texinputs:
         env = dict(os.environ)
@@ -54,11 +54,11 @@ def _run_engine(
             timeout=60,
             env=env,
         )
-        return proc.stdout, None
+        return proc.stdout, proc.stderr, None
     except subprocess.TimeoutExpired:
-        return "", CompileError(message="Compilation timed out after 60 seconds")
+        return "", "", CompileError(message="Compilation timed out after 60 seconds")
     except Exception as e:
-        return "", CompileError(message=f"Compilation failed: {e}")
+        return "", "", CompileError(message=f"Compilation failed: {e}")
 
 
 def _run_tool(tool: str, filename: str, work_dir: Path) -> CompileError | None:
@@ -123,9 +123,10 @@ def compile_tex(
         errors: list[CompileError] = []
         warnings: list[str] = []
         log_content = ""
+        engine_stderr = ""
 
         # Pass 1: xelatex
-        log_content, err = _run_engine(engine, filename, work_dir, extra_texinputs)
+        log_content, engine_stderr, err = _run_engine(engine, filename, work_dir, extra_texinputs)
         if err:
             errors.append(err)
             return CompileResult(success=False, tex_path=tex_path, errors=errors, log=log_content)
@@ -143,7 +144,7 @@ def compile_tex(
 
         # Pass 3 & 4: xelatex (resolve references and bibliography)
         for _ in range(2):
-            log_content, err = _run_engine(engine, filename, work_dir, extra_texinputs)
+            log_content, engine_stderr, err = _run_engine(engine, filename, work_dir, extra_texinputs)
             if err:
                 errors.append(err)
                 return CompileResult(success=False, tex_path=tex_path, errors=errors, log=log_content)
@@ -157,6 +158,18 @@ def compile_tex(
 
         pdf_path = work_dir / f"{filename}.pdf"
         success = pdf_path.exists() and not errors
+
+        if not success and not errors:
+            # No !-prefixed errors parsed but no PDF either (e.g. a broken
+            # engine format, a vanished class file). Surface the log tail and
+            # engine stderr so the failure is actionable, not a bare
+            # "Compilation failed."
+            tail = [ln.strip() for ln in log_content.strip().splitlines() if ln.strip()][-10:]
+            snippet = "\n".join(tail)[-800:]
+            if engine_stderr.strip():
+                snippet = (snippet + "\n" + engine_stderr.strip())[-800:]
+            if snippet:
+                errors.append(CompileError(message=f"compilation produced no PDF; last log lines:\n{snippet}"))
 
         # Copy outputs to output_dir if specified
         final_tex = tex_path
