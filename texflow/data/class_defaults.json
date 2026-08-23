@@ -40,5 +40,23 @@
     "has_chapters": false,
     "default_font_size": "11pt",
     "default_paper": null
+  },
+  "ieee-access": {
+    "description": "IEEE Access journal (two-column, wide-table friendly)",
+    "max_section_depth": 3,
+    "has_chapters": false,
+    "default_font_size": "10pt",
+    "default_paper": "letterpaper",
+    "columns": 2,
+    "requires_class_file": "ieeeaccess.cls"
+  },
+  "ieee-conference": {
+    "description": "IEEE conference paper via stock IEEEtran (two-column)",
+    "max_section_depth": 3,
+    "has_chapters": false,
+    "default_font_size": "10pt",
+    "default_paper": "letterpaper",
+    "columns": 2,
+    "requires_class_file": null
   }
 }

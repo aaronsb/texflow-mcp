@@ -7,6 +7,7 @@ The document auto-saves to disk after mutations and reloads on startup.
 from __future__ import annotations
 
 import hashlib
+import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -81,12 +82,16 @@ def clear_confirmation() -> None:
     _pending_confirmation = None
 
 _SAVE_FILENAME = "document.texflow.json"
+_SHARED_FILENAME = "shared.texflow.json"
+_VARIANTS_DIR = "variants"
 
 
 def get_doc() -> Document | None:
     global _current_doc
     if _current_doc is None:
         _current_doc = _try_load()
+        if _current_doc is not None:
+            _current_doc.shared = _load_shared()
     return _current_doc
 
 
@@ -126,14 +131,46 @@ def set_output_dir(path: Path) -> None:
 def auto_save() -> Path | None:
     """Auto-save the current document model to disk.
 
-    No-ops when save is suppressed (e.g., during queue execution).
+    Also persists the shared-block store. No-ops when save is suppressed
+    (e.g., during queue execution).
     """
     if _save_suppressed or _current_doc is None:
         return None
     save_path = _current_doc.save_path
     if save_path is None:
         save_path = _output_dir / _SAVE_FILENAME
-    return _current_doc.save(save_path)
+    saved = _current_doc.save(save_path)
+    _save_shared(_current_doc.shared)
+    return saved
+
+
+def _shared_path() -> Path:
+    return _output_dir / _SHARED_FILENAME
+
+
+def _load_shared() -> dict:
+    """Load the shared-block store (both variants resolve against it)."""
+    path = _shared_path()
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _save_shared(shared: dict) -> None:
+    path = _shared_path()
+    if shared:
+        path.write_text(json.dumps(shared, indent=2), encoding="utf-8")
+    elif path.exists():
+        path.unlink(missing_ok=True)
+
+
+def variants_dir() -> Path:
+    """Directory holding derived document variants."""
+    return _output_dir / _VARIANTS_DIR
 
 
 def suppress_save(suppress: bool = True) -> None:

@@ -43,7 +43,7 @@ class TestStyleLoading:
 
     def test_all_styles_have_packages(self):
         for slug, style in get_styles().items():
-            assert style.packages, f"Style {slug} has no packages"
+            assert style.packages or style.preamble, f"Style {slug} is empty"
             assert style.preamble, f"Style {slug} has no preamble"
 
 

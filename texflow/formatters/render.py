@@ -55,3 +55,42 @@ def format_preview_result(preview) -> str:
         "The preview image is saved to disk. Share the file path with the user.",
     ]
     return "\n".join(lines)
+
+
+def format_check_result(result, log_defects: list[str], vision_report, pngs: list) -> str:
+    """Format the one-shot QA check: compile status, log defects, vision findings."""
+    lines: list[str] = ["Structural check report", ""]
+
+    if result.success:
+        lines.append(f"Compile: OK → {result.pdf_path}")
+    else:
+        lines.append("Compile: FAILED — fixing must take priority; vision pages below may be stale.")
+        if result.errors:
+            lines.append("Errors:")
+            for err in result.errors[:5]:
+                loc = f" (line {err.line})" if err.line else ""
+                lines.append(f"  - {err.message}{loc}")
+        lines.append("")
+
+    lines.append(f"Pages rendered: {len(pngs)}"
+                 + ("" if pngs else " (pdftoppm unavailable or compile failed — log-only check)"))
+    lines.append("")
+
+    if log_defects:
+        lines.append(f"Log defects ({len(log_defects)}):")
+        lines.extend(f"  - {d}" for d in log_defects[:10])
+    else:
+        lines.append("Log defects: none (no hbox/vbox overflow, missing files, or undefined refs).")
+    lines.append("")
+
+    if vision_report.provider_used and vision_report.provider_used != "none":
+        lines.append(f"Vision pass: {vision_report.provider_used}"
+                     + (" (degraded)" if vision_report.degraded else ""))
+        lines.append(vision_report.format())
+    elif vision_report.notes:
+        lines.append(f"Vision pass: {vision_report.provider_used}")
+        lines.append(vision_report.format())
+    else:
+        lines.append("Vision pass: none")
+
+    return "\n".join(lines)
